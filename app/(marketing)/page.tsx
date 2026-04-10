@@ -1,34 +1,41 @@
-import Link from "next/link";
+import { ConsultoraSection } from "@/components/marketing/consultora-section";
+import { ExperienceFeed } from "@/components/marketing/experience-feed";
+import { LuxuryHero } from "@/components/marketing/luxury-hero";
+import { QuizSection } from "@/components/marketing/quiz-section";
+import { parsePedidoPrefillFromSearchParams } from "@/lib/marketing/pedido-orcamento";
+import { fetchPublishedPosts } from "@/lib/posts/fetch-published";
+import { fetchSiteContent } from "@/lib/site/fetch-site-content";
 
-export default function HomePage() {
+/** Feed e dados públicos — revalidar para refletir novos posts sem rebuild completo. */
+export const revalidate = 60;
+
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HomePage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const prefill = parsePedidoPrefillFromSearchParams(sp);
+  const quizKey = [
+    prefill?.postId ?? "",
+    prefill?.destinoSonho ?? "",
+  ].join("|");
+
+  const [posts, site] = await Promise.all([
+    fetchPublishedPosts(),
+    fetchSiteContent(),
+  ]);
+
   return (
-    <div className="mx-auto max-w-5xl px-6 py-20 md:py-28">
-      <div className="rounded-2xl bg-white p-10 shadow-lg md:p-16">
-        <p className="text-sm font-medium uppercase tracking-wider text-ocean-500">
-          Consultoria independente
-        </p>
-        <h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-ocean-900 md:text-5xl md:leading-tight">
-          Viagens pensadas para ti, com calma e detalhe.
-        </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-ocean-700">
-          Em breve: quiz interativo para percebermos o teu estilo de viagem e
-          prepararmos uma proposta alinhada contigo.
-        </p>
-        <div className="mt-12 flex flex-wrap gap-4">
-          <span className="inline-flex items-center rounded-2xl bg-ocean-50 px-5 py-3 text-sm font-medium text-ocean-800">
-            Sprint 2 — Quiz de viagem
-          </span>
-        </div>
-        <p className="mt-14 text-sm text-ocean-600">
-          Já és consultora?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-ocean-700 underline-offset-4 hover:text-terracotta hover:underline"
-          >
-            Entrar no CRM
-          </Link>
-        </p>
-      </div>
-    </div>
+    <>
+      <LuxuryHero copy={site.hero} />
+      <ExperienceFeed
+        posts={posts}
+        feed={site.feed}
+        featuredVideo={site.featuredVideo}
+      />
+      <ConsultoraSection copy={site.consultora} />
+      <QuizSection copy={site.quiz} prefill={prefill} quizKey={quizKey} />
+    </>
   );
 }

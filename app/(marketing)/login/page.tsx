@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { LoginForm } from "@/components/auth/login-form";
+import { LoginRegisterShell } from "@/components/auth/login-register-shell";
 
 export const metadata: Metadata = {
   title: "Entrar",
-  description: "Acesso reservado à consultora — painel CRM.",
+  description: "Inicia sessão — cliente ou consultora.",
 };
 
 type Props = {
@@ -18,20 +19,18 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <div className="mx-auto flex max-w-lg flex-1 flex-col justify-center px-6 py-16">
       <div className="rounded-2xl bg-white p-8 shadow-lg md:p-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-ocean-900">
-          Área da consultora
-        </h1>
-        <p className="mt-2 text-sm text-ocean-600">
-          Inicia sessão para aceder ao painel de leads e orçamentos.
-        </p>
         {authError ? (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
             Não foi possível concluir o início de sessão. Tenta novamente.
           </p>
         ) : null}
-        <div className="mt-8">
-          <LoginForm />
-        </div>
+        <Suspense
+          fallback={
+            <p className="text-sm text-ocean-600">A carregar…</p>
+          }
+        >
+          <LoginRegisterShell />
+        </Suspense>
       </div>
     </div>
   );

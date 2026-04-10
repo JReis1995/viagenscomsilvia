@@ -1,10 +1,29 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { safeRedirectPath } from "@/lib/auth/redirect";
+import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { resolvePostLoginPath } from "@/lib/auth/redirect";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  const path = request.nextUrl.pathname;
+
+  /* URLs antigas — um único login em /login */
+  if (path === "/conta/entrar" || path.startsWith("/conta/entrar/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", "/conta");
+    return NextResponse.redirect(url);
+  }
+
+  if (path === "/conta/registar" || path.startsWith("/conta/registar/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("registar", "1");
+    url.searchParams.set("next", "/conta");
+    return NextResponse.redirect(url);
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +50,12 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
+  if (!user && path.startsWith("/conta")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", path);
+    return NextResponse.redirect(url);
+  }
 
   if (!user && path.startsWith("/crm")) {
     const url = request.nextUrl.clone();
@@ -40,10 +64,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (user && path.startsWith("/crm") && !isConsultoraEmail(user.email)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/conta";
+    url.searchParams.set("crm", "forbidden");
+    return NextResponse.redirect(url);
+  }
+
   if (user && path === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = safeRedirectPath(request.nextUrl.searchParams.get("next"));
+    url.pathname = resolvePostLoginPath(
+      request.nextUrl.searchParams.get("next"),
+      isConsultoraEmail(user.email),
+    );
     url.searchParams.delete("next");
+    url.searchParams.delete("registar");
     return NextResponse.redirect(url);
   }
 

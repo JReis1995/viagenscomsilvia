@@ -1,24 +1,48 @@
 @import "tailwindcss";
 
+/* Boutique viagens: lagoon (mar profundo), areia fria, coral suave — evita azul “corporate”. */
 :root {
-  --background: #fdfbf7;
-  --foreground: #0c4a6e;
+  --background: #f5f3ef;
+  --foreground: #0f3d39;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-sand: #fdfbf7;
-  --color-ocean-50: #f0f9ff;
-  --color-ocean-100: #e0f2fe;
-  --color-ocean-500: #0ea5e9;
-  --color-ocean-600: #0284c7;
-  --color-ocean-700: #0369a1;
-  --color-ocean-800: #075985;
-  --color-ocean-900: #0c4a6e;
-  --color-terracotta: #ea580c;
-  --color-terracotta-hover: #c2410c;
+  --color-sand: #f5f3ef;
+  --color-ocean-50: #eef7f5;
+  --color-ocean-100: #d4ebe7;
+  --color-ocean-500: #2db5a8;
+  --color-ocean-600: #239589;
+  --color-ocean-700: #1d7a72;
+  --color-ocean-800: #18625c;
+  --color-ocean-900: #0f3d39;
+  --color-terracotta: #d9785c;
+  --color-terracotta-hover: #c46248;
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-mist-slow {
+    animation: none !important;
+  }
+}
+
+@keyframes hero-mist-drift {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translate(-4%, 0) scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translate(3%, -1%) scale(1.03);
+  }
+}
+
+.hero-mist-slow {
+  animation: hero-mist-drift 18s ease-in-out infinite;
 }
 
 body {

@@ -2,12 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { safeRedirectPath } from "@/lib/auth/redirect";
+import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { resolvePostLoginPath } from "@/lib/auth/redirect";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = safeRedirectPath(searchParams.get("next"));
+  const nextParam = searchParams.get("next");
 
   if (code) {
     const cookieStore = await cookies();
@@ -30,7 +31,14 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const path = resolvePostLoginPath(
+        nextParam,
+        isConsultoraEmail(user?.email),
+      );
+      return NextResponse.redirect(`${origin}${path}`);
     }
   }
 
