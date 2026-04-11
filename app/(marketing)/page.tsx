@@ -23,26 +23,32 @@ export default async function HomePage({ searchParams }: Props) {
     prefill?.destinoSonho ?? "",
   ].join("|");
 
-  const [posts, site, supabase] = await Promise.all([
+  const [posts, site] = await Promise.all([
     fetchPublishedPosts(),
     fetchSiteContent(),
-    createClient(),
   ]);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  let viewerUserId: string | null = null;
   let wishlistedPostIds: string[] = [];
-  if (user) {
-    const { data: wl, error: wlError } = await supabase
-      .from("wishlist_items")
-      .select("post_id")
-      .eq("user_id", user.id);
-    if (!wlError && wl) {
-      wishlistedPostIds = wl
-        .map((r) => r.post_id)
-        .filter((id): id is string => !!id);
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseAnon) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    viewerUserId = user?.id ?? null;
+    if (user) {
+      const { data: wl, error: wlError } = await supabase
+        .from("wishlist_items")
+        .select("post_id")
+        .eq("user_id", user.id);
+      if (!wlError && wl) {
+        wishlistedPostIds = wl
+          .map((r) => r.post_id)
+          .filter((id): id is string => !!id);
+      }
     }
   }
 
@@ -53,7 +59,7 @@ export default async function HomePage({ searchParams }: Props) {
         posts={posts}
         feed={site.feed}
         featuredVideo={site.featuredVideo}
-        viewerUserId={user?.id ?? null}
+        viewerUserId={viewerUserId}
         wishlistedPostIds={wishlistedPostIds}
       />
       <InstagramSocialSection copy={site.socialFeed} />
