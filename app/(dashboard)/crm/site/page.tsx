@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CrmSiteEditor } from "@/components/crm/crm-site-editor";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { mergeSiteContentFromDb } from "@/lib/site/site-content";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
@@ -21,7 +21,7 @@ export default async function CrmSiteContentPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email || !isConsultoraEmail(user.email)) {
+  if (!user?.email || !(await isConsultoraEmailAsync(user.email, supabase))) {
     redirect("/login?next=/crm/site");
   }
 

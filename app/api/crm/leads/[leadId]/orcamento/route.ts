@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildOrcamentoLeadEmail } from "@/lib/email/orcamento-lead";
 import { buildPropostaPdfBuffer } from "@/lib/pdf/proposta-pdf";
@@ -38,7 +38,7 @@ export async function POST(
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  if (!isConsultoraEmail(user.email)) {
+  if (!(await isConsultoraEmailAsync(user.email, supabase))) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 403 });
   }
 

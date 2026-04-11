@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { resolvePostLoginPath } from "@/lib/auth/redirect";
 
 export async function proxy(request: NextRequest) {
@@ -73,7 +73,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && path.startsWith("/crm") && !isConsultoraEmail(user.email)) {
+  if (
+    user &&
+    path.startsWith("/crm") &&
+    !(await isConsultoraEmailAsync(user.email, supabase))
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/conta";
     url.searchParams.set("crm", "forbidden");
@@ -84,7 +88,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = resolvePostLoginPath(
       request.nextUrl.searchParams.get("next"),
-      isConsultoraEmail(user.email),
+      await isConsultoraEmailAsync(user.email, supabase),
     );
     url.searchParams.delete("next");
     url.searchParams.delete("registar");

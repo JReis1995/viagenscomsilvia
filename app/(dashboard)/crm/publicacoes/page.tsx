@@ -5,7 +5,7 @@ import {
   CrmPostsManager,
   type CrmPostRow,
 } from "@/components/crm/crm-posts-manager";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -22,7 +22,7 @@ export default async function CrmPublicacoesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email || !isConsultoraEmail(user.email)) {
+  if (!user?.email || !(await isConsultoraEmailAsync(user.email, supabase))) {
     redirect("/login?next=/crm/publicacoes");
   }
 

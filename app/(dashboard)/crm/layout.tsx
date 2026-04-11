@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { CrmHeader } from "@/components/crm/crm-header";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CrmLayout({
@@ -18,7 +18,7 @@ export default async function CrmLayout({
     redirect("/login?next=/crm");
   }
 
-  if (!isConsultoraEmail(user.email)) {
+  if (!(await isConsultoraEmailAsync(user.email, supabase))) {
     redirect("/conta?crm=forbidden");
   }
 

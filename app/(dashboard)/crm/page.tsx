@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { LeadsKanban } from "@/components/crm/leads-kanban";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 import type { LeadBoardRow } from "@/types/lead";
@@ -20,7 +20,7 @@ export default async function CrmHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email || !isConsultoraEmail(user.email)) {
+  if (!user?.email || !(await isConsultoraEmailAsync(user.email, supabase))) {
     redirect("/login?next=/crm");
   }
 

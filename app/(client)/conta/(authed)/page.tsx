@@ -37,17 +37,27 @@ export default async function ContaHomePage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: leads, error: leadsError } = await supabase
-    .from("leads")
-    .select(
-      "id, nome, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, destino_sonho",
-    )
-    .order("data_pedido", { ascending: false });
+  const userEmail = user?.email?.trim() ?? "";
 
-  const { data: myNotesRaw, error: notesError } = await supabase
-    .from("lead_client_updates")
-    .select("id, lead_id, message, created_at")
-    .order("created_at", { ascending: false });
+  /* /conta é sempre portal de cliente: só pedidos deste email, mesmo que a conta
+   * esteja também em consultora_email (RLS de consultora veria todas as leads). */
+  const { data: leads, error: leadsError } = userEmail
+    ? await supabase
+        .from("leads")
+        .select(
+          "id, nome, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, destino_sonho",
+        )
+        .ilike("email", userEmail)
+        .order("data_pedido", { ascending: false })
+    : { data: null as null, error: null as null };
+
+  const { data: myNotesRaw, error: notesError } = user?.id
+    ? await supabase
+        .from("lead_client_updates")
+        .select("id, lead_id, message, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+    : { data: null as null, error: null as null };
 
   let promoOptIn = false;
   if (user?.id) {

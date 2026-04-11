@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { SocialLinks } from "@/components/marketing/social-links";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MarketingLayout({
@@ -9,12 +9,20 @@ export default async function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isConsultora = user ? isConsultoraEmail(user.email) : false;
+  let user: { email?: string | null } | null = null;
+  let isConsultora = false;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseAnon) {
+    const supabase = await createClient();
+    const {
+      data: { user: u },
+    } = await supabase.auth.getUser();
+    user = u;
+    if (u?.email) {
+      isConsultora = await isConsultoraEmailAsync(u.email, supabase);
+    }
+  }
   const painelHref = !user
     ? "/login"
     : isConsultora

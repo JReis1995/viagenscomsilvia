@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { notifyPromoSubscribers } from "@/lib/crm/notify-promo-subscribers";
 import { revalidatePublicHome } from "@/lib/next/revalidate-public-home";
 import { isCanonicalLeadStatus } from "@/lib/crm/lead-board";
@@ -19,7 +19,7 @@ async function requireConsultora() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user?.email || !isConsultoraEmail(user.email)) {
+  if (!user?.email || !(await isConsultoraEmailAsync(user.email, supabase))) {
     return {
       ok: false as const,
       error: "Sem permissão.",

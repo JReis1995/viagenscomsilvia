@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { resolvePostLoginPath } from "@/lib/auth/redirect";
 
 export async function GET(request: Request) {
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
       const path = resolvePostLoginPath(
         nextParam,
-        isConsultoraEmail(user?.email),
+        await isConsultoraEmailAsync(user?.email, supabase),
       );
       return NextResponse.redirect(`${origin}${path}`);
     }

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { ContaHeader } from "@/components/conta/conta-header";
-import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ContaAuthedLayout({
@@ -18,7 +18,7 @@ export default async function ContaAuthedLayout({
     redirect("/login?next=/conta");
   }
 
-  if (isConsultoraEmail(user.email)) {
+  if (await isConsultoraEmailAsync(user.email, supabase)) {
     redirect("/crm");
   }
 

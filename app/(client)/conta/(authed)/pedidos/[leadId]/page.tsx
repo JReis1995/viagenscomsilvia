@@ -40,15 +40,25 @@ export default async function PedidoInterativoPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) notFound();
 
+  const userEmail = user.email?.trim() ?? "";
+
   const { data: lead, error } = await supabase
     .from("leads")
     .select(
-      "id, nome, status, data_pedido, data_envio_orcamento, detalhes_proposta, destino_sonho",
+      "id, nome, email, status, data_pedido, data_envio_orcamento, detalhes_proposta, destino_sonho",
     )
     .eq("id", leadId)
     .maybeSingle();
 
   if (error || !lead) notFound();
+
+  const leadEmail = lead.email?.trim().toLowerCase() ?? "";
+  if (
+    !userEmail ||
+    leadEmail !== userEmail.toLowerCase()
+  ) {
+    notFound();
+  }
 
   const proposta = parseDetalhesProposta(lead.detalhes_proposta);
 
