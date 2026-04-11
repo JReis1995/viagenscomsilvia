@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Resend } from "resend";
 
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { notifyPromoSubscribers } from "@/lib/crm/notify-promo-subscribers";
 import { revalidatePublicHome } from "@/lib/next/revalidate-public-home";
 import { isCanonicalLeadStatus } from "@/lib/crm/lead-board";
+import { buildCrmConsultoraToLeadEmail } from "@/lib/email/crm-consultora-to-lead";
 import {
   parseSiteContentForSave,
   type SiteContent,
@@ -63,6 +65,213 @@ export async function updateLeadStatusAction(
 
   if (error) {
     return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
+const leadNotasSchema = z.object({
+  leadId: z.string().uuid(),
+  notas: z.string().max(8000),
+});
+
+export async function updateLeadNotasInternasAction(
+  leadId: string,
+  notas: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = leadNotasSchema.safeParse({ leadId, notas });
+  if (!parsed.success) {
+    return { ok: false, error: "Dados inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { error } = await auth.db
+    .from("leads")
+    .update({ notas_internas: parsed.data.notas.trim() || null })
+    .eq("id", parsed.data.leadId);
+
+  if (error) {
+    if (
+      error.message.includes("notas_internas") ||
+      error.message.includes("schema cache")
+    ) {
+      return {
+        ok: false,
+        error:
+          `${error.message} Executa sql/add_lead_notas_internas.sql no Supabase.`,
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
+const sendLeadCrmEmailSchema = z.object({
+  leadId: z.string().uuid(),
+  subject: z.string().trim().min(1).max(400),
+  body: z.string().trim().min(1).max(12000),
+});
+
+export async function sendLeadCrmEmailAction(
+  leadId: string,
+  subject: string,
+  body: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = sendLeadCrmEmailSchema.safeParse({ leadId, subject, body });
+  if (!parsed.success) {
+    return { ok: false, error: "Assunto ou mensagem inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { data: lead, error: leadErr } = await auth.db
+    .from("leads")
+    .select("id, nome, email")
+    .eq("id", parsed.data.leadId)
+    .maybeSingle();
+
+  if (leadErr || !lead?.email?.trim()) {
+    return { ok: false, error: "Lead não encontrada ou sem email." };
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM?.trim();
+  if (!apiKey || !from) {
+    return {
+      ok: false,
+      error:
+        "Email não configurado no servidor (RESEND_API_KEY / RESEND_FROM).",
+    };
+  }
+
+  const { subject: resendSubject, html, text } = buildCrmConsultoraToLeadEmail(
+    lead.nome ?? "",
+    parsed.data.subject,
+    parsed.data.body,
+  );
+
+  const replyTo = auth.user.email?.trim() || undefined;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { data: sent, error: sendError } = await resend.emails.send({
+      from,
+      to: lead.email.trim(),
+      ...(replyTo ? { replyTo } : {}),
+      subject: resendSubject,
+      html,
+      text,
+    });
+
+    if (sendError) {
+      console.error("[crm-email] Resend:", sendError.message);
+      return {
+        ok: false,
+        error: "O envio falhou. Tenta de novo dentro de momentos.",
+      };
+    }
+
+    const { error: insertError } = await auth.db.from("lead_crm_emails").insert({
+      lead_id: parsed.data.leadId,
+      direction: "outbound",
+      subject: parsed.data.subject.trim(),
+      body_text: parsed.data.body.trim(),
+      resend_email_id: sent?.id ?? null,
+      sent_by_user_id: auth.user.id,
+    });
+
+    if (insertError) {
+      console.error("[crm-email] insert:", insertError.message);
+      if (
+        insertError.message.includes("lead_crm_emails") ||
+        insertError.message.includes("schema cache")
+      ) {
+        return {
+          ok: false,
+          error:
+            `${insertError.message} Executa sql/add_lead_crm_emails.sql no Supabase. (O email pode ter sido enviado — confirma na caixa da lead.)`,
+        };
+      }
+      return {
+        ok: false,
+        error:
+          "Email enviado mas não foi possível registar no histórico. Anota manualmente.",
+      };
+    }
+  } catch (e) {
+    console.error("[crm-email]", e);
+    return { ok: false, error: "Erro inesperado ao enviar." };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
+const registerInboundEmailSchema = z.object({
+  leadId: z.string().uuid(),
+  subject: z.string().trim().min(1).max(400),
+  body: z.string().trim().min(1).max(12000),
+});
+
+/** Regista no histórico uma resposta que a lead enviou por email (ex.: Gmail). */
+export async function registerLeadInboundEmailAction(
+  leadId: string,
+  subject: string,
+  body: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = registerInboundEmailSchema.safeParse({ leadId, subject, body });
+  if (!parsed.success) {
+    return { ok: false, error: "Assunto ou mensagem inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { data: lead, error: leadErr } = await auth.db
+    .from("leads")
+    .select("id")
+    .eq("id", parsed.data.leadId)
+    .maybeSingle();
+
+  if (leadErr || !lead) {
+    return { ok: false, error: "Lead não encontrada." };
+  }
+
+  const { error: insertError } = await auth.db.from("lead_crm_emails").insert({
+    lead_id: parsed.data.leadId,
+    direction: "inbound",
+    subject: parsed.data.subject.trim(),
+    body_text: parsed.data.body.trim(),
+    resend_email_id: null,
+    sent_by_user_id: null,
+  });
+
+  if (insertError) {
+    console.error("[crm-email-inbound] insert:", insertError.message);
+    if (
+      insertError.message.includes("lead_crm_emails") ||
+      insertError.message.includes("direction") ||
+      insertError.message.includes("schema cache")
+    ) {
+      return {
+        ok: false,
+        error:
+          `${insertError.message} Executa sql/add_lead_crm_emails_inbound.sql no Supabase (valor inbound em direction).`,
+      };
+    }
+    return { ok: false, error: insertError.message };
   }
 
   revalidatePath("/crm");

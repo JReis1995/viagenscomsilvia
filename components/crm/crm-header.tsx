@@ -60,6 +60,16 @@ export function CrmHeader({ email }: Props) {
           >
             Publicações
           </Link>
+          <span className="text-ocean-200" aria-hidden>
+            |
+          </span>
+          <Link
+            href="/crm/primeiros-passos"
+            className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"
+            title="Checklist técnica do painel"
+          >
+            Primeiros passos
+          </Link>
         </nav>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           <Link

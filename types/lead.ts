@@ -6,7 +6,11 @@ export type LeadBoardRow = {
   telemovel: string | null;
   status: string;
   data_pedido: string;
+  /** Lembrete automático (cron) — último envio. */
+  data_ultimo_followup?: string | null;
   data_envio_orcamento: string | null;
+  /** Notas internas da consultora (só CRM). Requer coluna em BD — ver sql/add_lead_notas_internas.sql */
+  notas_internas?: string | null;
   /** JSONB — validar com `parseDetalhesProposta` quando necessário */
   detalhes_proposta: unknown;
   /** Chaves do quiz: neve | praia | cidade | misto */
@@ -16,4 +20,12 @@ export type LeadBoardRow = {
   destino_sonho: string | null;
   orcamento_estimado: string | null;
   auto_followup: boolean;
+  pedido_rapido: boolean;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  referrer: string | null;
+  landing_path: string | null;
 };

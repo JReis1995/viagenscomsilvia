@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import { FeaturedPublicationVideo } from "@/components/marketing/featured-publication-video";
 import { FeedWishlistButton } from "@/components/marketing/feed-wishlist-button";
 import { buildPedidoOrcamentoHrefFromPost } from "@/lib/marketing/pedido-orcamento";
@@ -177,6 +178,13 @@ type Props = {
   featuredVideo: SiteContent["featuredVideo"];
   viewerUserId?: string | null;
   wishlistedPostIds?: string[];
+  crm?: {
+    patchFeed: (field: keyof SiteContent["feed"], value: string) => void;
+    patchFeatured: (
+      field: keyof SiteContent["featuredVideo"],
+      value: string,
+    ) => void;
+  };
 };
 
 function buildVibeChips(feed: SiteContent["feed"]) {
@@ -197,6 +205,7 @@ export function ExperienceFeed({
   featuredVideo,
   viewerUserId = null,
   wishlistedPostIds = [],
+  crm,
 }: Props) {
   const reduceMotion = useReducedMotion();
   const [activeVibeSlug, setActiveVibeSlug] = useState<string | null>(null);
@@ -208,10 +217,14 @@ export function ExperienceFeed({
     return posts.filter((p) => p.feed_vibe_slugs.includes(activeVibeSlug));
   }, [posts, activeVibeSlug]);
 
+  const chipLock = crm
+    ? "pointer-events-none [&_.crm-feed-chip]:pointer-events-auto"
+    : "";
+
   return (
     <section
       id="inspiracoes"
-      className="scroll-mt-24 border-t border-ocean-100/70 bg-gradient-to-b from-sand via-white/40 to-sand px-5 py-20 sm:px-6 md:py-28"
+      className="scroll-mt-28 border-t border-ocean-100/70 bg-gradient-to-b from-sand via-white/40 to-sand px-5 py-20 sm:px-6 md:py-28"
       aria-labelledby="feed-heading"
     >
       <div className="mx-auto max-w-6xl">
@@ -223,20 +236,52 @@ export function ExperienceFeed({
           className="mx-auto max-w-2xl text-center"
         >
           <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-ocean-500">
-            {feed.eyebrow}
+            {crm ? (
+              <CrmInlineText
+                label="Linha pequena das inspirações"
+                value={feed.eyebrow}
+                onApply={(v) => crm.patchFeed("eyebrow", v)}
+              />
+            ) : (
+              feed.eyebrow
+            )}
           </p>
           <h2
             id="feed-heading"
             className="mt-4 font-serif text-3xl font-normal tracking-tight text-ocean-900 md:text-4xl"
           >
-            {feed.title}
+            {crm ? (
+              <CrmInlineText
+                label="Título das inspirações"
+                value={feed.title}
+                onApply={(v) => crm.patchFeed("title", v)}
+              />
+            ) : (
+              feed.title
+            )}
           </h2>
           <p className="mt-5 text-base leading-relaxed text-ocean-600 md:text-lg">
-            {feed.subtitle}
+            {crm ? (
+              <CrmInlineText
+                label="Subtítulo das inspirações"
+                multiline
+                value={feed.subtitle}
+                onApply={(v) => crm.patchFeed("subtitle", v)}
+              />
+            ) : (
+              feed.subtitle
+            )}
           </p>
         </motion.div>
 
-        <FeaturedPublicationVideo copy={featuredVideo} />
+        <FeaturedPublicationVideo
+          copy={featuredVideo}
+          crm={
+            crm
+              ? { patch: (f, v) => crm.patchFeatured(f, v) }
+              : undefined
+          }
+        />
 
         {posts.length === 0 ? (
           <motion.p
@@ -245,13 +290,22 @@ export function ExperienceFeed({
             whileInView={reduceMotion ? undefined : { opacity: 1 }}
             viewport={{ once: true }}
           >
-            {feed.emptyMessage}
+            {crm ? (
+              <CrmInlineText
+                label="Mensagem quando não há publicações"
+                multiline
+                value={feed.emptyMessage}
+                onApply={(v) => crm.patchFeed("emptyMessage", v)}
+              />
+            ) : (
+              feed.emptyMessage
+            )}
           </motion.p>
         ) : (
           <div>
             {vibeChips.length > 0 ? (
               <div
-                className="mt-12 flex flex-wrap items-center justify-center gap-2"
+                className={`mt-12 flex flex-wrap items-center justify-center gap-2 ${chipLock}`}
                 role="group"
                 aria-label="Filtrar inspirações por vibe"
               >
@@ -264,11 +318,36 @@ export function ExperienceFeed({
                       : "border border-ocean-200/90 bg-white/80 text-ocean-800 hover:border-ocean-300"
                   }`}
                 >
-                  {feed.filterAllLabel}
+                  {crm ? (
+                    <CrmInlineText
+                      label="Texto do filtro «tudo»"
+                      value={feed.filterAllLabel}
+                      onApply={(v) => crm.patchFeed("filterAllLabel", v)}
+                      className={
+                        activeVibeSlug === null
+                          ? "crm-feed-chip text-white"
+                          : "crm-feed-chip"
+                      }
+                    />
+                  ) : (
+                    feed.filterAllLabel
+                  )}
                 </button>
-                {vibeChips.map((c) => {
+                {vibeChips.map((c, chipIdx) => {
                   const slug = c.slug.trim().toLowerCase();
                   const active = activeVibeSlug === slug;
+                  const labelField =
+                    chipIdx === 0
+                      ? ("filterChip1Label" as const)
+                      : chipIdx === 1
+                        ? ("filterChip2Label" as const)
+                        : ("filterChip3Label" as const);
+                  const slugField =
+                    chipIdx === 0
+                      ? ("filterChip1Slug" as const)
+                      : chipIdx === 1
+                        ? ("filterChip2Slug" as const)
+                        : ("filterChip3Slug" as const);
                   return (
                     <button
                       key={slug}
@@ -282,7 +361,30 @@ export function ExperienceFeed({
                           : "border border-ocean-200/90 bg-white/80 text-ocean-800 hover:border-ocean-300"
                       }`}
                     >
-                      {c.label.trim()}
+                      {crm ? (
+                        <span className="flex flex-col items-center gap-1">
+                          <CrmInlineText
+                            label={`Rótulo do filtro ${chipIdx + 1}`}
+                            value={c.label.trim()}
+                            onApply={(v) => crm.patchFeed(labelField, v)}
+                            className={
+                              active
+                                ? "crm-feed-chip text-white"
+                                : "crm-feed-chip"
+                            }
+                          />
+                          <CrmInlineText
+                            label={`Código do filtro ${chipIdx + 1}`}
+                            value={c.slug.trim()}
+                            onApply={(v) => crm.patchFeed(slugField, v)}
+                            className={`crm-feed-chip text-[10px] font-normal normal-case tracking-normal opacity-80 ${
+                              active ? "text-white" : "text-ocean-600"
+                            }`}
+                          />
+                        </span>
+                      ) : (
+                        c.label.trim()
+                      )}
                     </button>
                   );
                 })}
@@ -290,7 +392,15 @@ export function ExperienceFeed({
             ) : null}
 
             <p className="mt-14 text-center text-[11px] font-medium uppercase tracking-[0.3em] text-ocean-400">
-              {feed.moreLabel}
+              {crm ? (
+                <CrmInlineText
+                  label="Texto por cima da grelha"
+                  value={feed.moreLabel}
+                  onApply={(v) => crm.patchFeed("moreLabel", v)}
+                />
+              ) : (
+                feed.moreLabel
+              )}
             </p>
 
             {filteredPosts.length === 0 ? (

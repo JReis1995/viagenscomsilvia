@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CrmSiteEditor } from "@/components/crm/crm-site-editor";
+import { CrmSiteVisualEditor } from "@/components/crm/crm-site-visual-editor";
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
+import { fetchPublishedPosts } from "@/lib/posts/fetch-published";
 import { mergeSiteContentFromDb } from "@/lib/site/site-content";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
@@ -15,7 +17,13 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function CrmSiteContentPage() {
+type PageProps = {
+  searchParams: Promise<{ lista?: string }>;
+};
+
+export default async function CrmSiteContentPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const listMode = sp.lista === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,23 +52,54 @@ export default async function CrmSiteContentPage() {
     loadError = sr.message;
   }
 
+  const posts = await fetchPublishedPosts();
+
   return (
-    <div className="space-y-6 pb-28">
+    <div className={`space-y-6 ${listMode ? "pb-28" : "pb-36"}`}>
       <div>
         <h1 className="font-serif text-2xl font-normal tracking-tight text-ocean-900 md:text-3xl">
-          Editar página inicial
+          {listMode
+            ? "Editar o site (vista em lista)"
+            : "Editar o site (clica no rascunho)"}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-ocean-600 md:text-base">
-          Usa os separadores abaixo.{" "}
-          <strong className="font-medium text-ocean-800">
-            Pré-visualizar rascunho
-          </strong>{" "}
-          mostra o site com as tuas alterações <em>antes</em> de guardar. As
-          caixas do feed vêm de{" "}
-          <Link href="/crm/publicacoes" className="font-medium underline">
-            Publicações
-          </Link>
-          .
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ocean-600 md:text-base">
+          {listMode ? (
+            <>
+              Modo em separadores, útil para rever tudo em sequência. À direita
+              (ou em baixo no telemóvel) tens a pré-visualização ao vivo; cada
+              campo inclui texto de ajuda quando está disponível. A vista
+              recomendada para edição fina é{" "}
+              <Link href="/crm/site" className="font-medium underline">
+                clicar no rascunho
+              </Link>
+              . As publicações do feed editam-se em{" "}
+              <Link href="/crm/publicacoes" className="font-medium underline">
+                Publicações
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Clica nas frases do rascunho para editar (abre uma caixa por
+              cima). A pré-visualização fica sempre visível em baixo; até
+              publicares, é só rascunho. Quando estiveres pronta,{" "}
+              <strong className="font-medium text-ocean-800">
+                Publicar no site
+              </strong>{" "}
+              envia tudo para o visitante. O feed de cartões vem de{" "}
+              <Link href="/crm/publicacoes" className="font-medium underline">
+                Publicações
+              </Link>
+              .{" "}
+              <Link
+                href="/crm/site?lista=1"
+                className="font-medium text-ocean-700 underline"
+              >
+                Vista em lista
+              </Link>{" "}
+              (pré-visualização ao lado + ajuda por campo).
+            </>
+          )}
         </p>
         {loadError ? (
           <p className="mt-3 rounded-lg border border-terracotta/30 bg-terracotta/10 px-4 py-2 text-sm text-ocean-900">
@@ -76,7 +115,11 @@ export default async function CrmSiteContentPage() {
           </p>
         ) : null}
       </div>
-      <CrmSiteEditor initial={initial} />
+      {listMode ? (
+        <CrmSiteEditor initial={initial} />
+      ) : (
+        <CrmSiteVisualEditor initial={initial} posts={posts} />
+      )}
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default async function CrmHomePage() {
     const res = await sr.client
       .from("leads")
       .select(
-        "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, auto_followup",
+        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path",
       )
       .order("data_pedido", { ascending: false });
     data = res.data as LeadBoardRow[] | null;
@@ -53,7 +53,9 @@ export default async function CrmHomePage() {
             SUPABASE_SERVICE_ROLE_KEY
           </code>{" "}
           no servidor (já usada pelo cron) — o CRM usa esta chave só no
-          servidor para não depender das políticas RLS.
+          servidor para não depender das políticas RLS. A longo prazo, RLS
+          bem desenhadas para o papel consultora podem reduzir esta
+          dependência e simplificar deploy para equipas não técnicas.
         </p>
         <p className="mt-2 font-mono text-xs text-ocean-500">{error.message}</p>
       </div>
@@ -122,6 +124,49 @@ export default async function CrmHomePage() {
     });
   }
 
+  let crmEmailRows: {
+    lead_id: string;
+    direction: string;
+    subject: string;
+    body_text: string;
+    created_at: string;
+  }[] = [];
+  if (sr.ok) {
+    const res = await sr.client
+      .from("lead_crm_emails")
+      .select("lead_id, direction, subject, body_text, created_at")
+      .order("created_at", { ascending: true });
+    if (res.error) {
+      console.error("[crm] lead_crm_emails:", res.error.message);
+    } else {
+      crmEmailRows = res.data ?? [];
+    }
+  }
+
+  const crmOutboundByLeadId: Record<
+    string,
+    {
+      direction: "outbound" | "inbound";
+      subject: string;
+      body_text: string;
+      created_at: string;
+    }[]
+  > = {};
+  for (const row of crmEmailRows) {
+    const k = row.lead_id;
+    if (!crmOutboundByLeadId[k]) crmOutboundByLeadId[k] = [];
+    const dir =
+      row.direction === "inbound"
+        ? ("inbound" as const)
+        : ("outbound" as const);
+    crmOutboundByLeadId[k].push({
+      direction: dir,
+      subject: row.subject,
+      body_text: row.body_text,
+      created_at: row.created_at,
+    });
+  }
+
   return (
     <div className="space-y-8">
       <div className="rounded-2xl bg-white p-6 shadow-lg md:p-8">
@@ -147,6 +192,7 @@ export default async function CrmHomePage() {
           initialLeads={leads}
           clientThreadsByLeadId={clientThreadsByLeadId}
           clientDecisionsByLeadId={clientDecisionsByLeadId}
+          crmOutboundByLeadId={crmOutboundByLeadId}
         />
       )}
     </div>

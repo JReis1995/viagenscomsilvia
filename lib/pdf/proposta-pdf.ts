@@ -2,6 +2,7 @@ import { PDFDocument, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { BRAND_MARK } from "@/lib/site/brand";
+import { pdfSafeText } from "@/lib/pdf/pdf-text-safe";
 import {
   PROPOSAL_ACCENT_JPG,
   PROPOSAL_BANNER_JPG,
@@ -50,6 +51,18 @@ export async function buildPropostaPdfBuffer(
   leadNome: string,
   p: DetalhesProposta,
 ): Promise<Buffer> {
+  const nome = pdfSafeText(leadNome);
+  const titulo = pdfSafeText(p.titulo);
+  const destino = pdfSafeText(p.destino);
+  const datas = pdfSafeText(p.datas);
+  const inclui = p.inclui.map((line) => pdfSafeText(line));
+  const valorTotal = pdfSafeText(p.valor_total);
+  const notas = p.notas?.trim() ? pdfSafeText(p.notas.trim()) : undefined;
+  const dataInicioRef = p.data_inicio?.trim()
+    ? pdfSafeText(p.data_inicio.trim())
+    : "";
+  const dataFimRef = p.data_fim?.trim() ? pdfSafeText(p.data_fim.trim()) : "";
+
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -207,11 +220,11 @@ export async function buildPropostaPdfBuffer(
   const drawBulletList = (label: string, items: string[]) => {
     const innerPad = 12;
     const labelSize = 8;
-    const list = items.length ? items : ["—"];
+    const list = items.length ? items : ["-"];
     let linesH = 0;
     const rendered: string[] = [];
     for (const item of list) {
-      const wrapped = wrapLines(`• ${item}`, font, 10, CONTENT_W - innerPad * 2 - 6);
+      const wrapped = wrapLines(`- ${item}`, font, 10, CONTENT_W - innerPad * 2 - 6);
       rendered.push(...wrapped);
       linesH += wrapped.length * LINE;
     }
@@ -256,7 +269,7 @@ export async function buildPropostaPdfBuffer(
   drawBanner();
   drawBrandHeader(true);
 
-  page.drawText(`Preparado para ${leadNome}`, {
+  page.drawText(`Preparado para ${nome}`, {
     x: MARGIN,
     y,
     size: 11,
@@ -266,7 +279,7 @@ export async function buildPropostaPdfBuffer(
   y -= LINE + GAP_MD;
 
   ensureSpace(52);
-  const titleLines = wrapLines(p.titulo, fontBold, 16, CONTENT_W);
+  const titleLines = wrapLines(titulo, fontBold, 16, CONTENT_W);
   for (const line of titleLines) {
     page.drawText(line, {
       x: MARGIN,
@@ -279,22 +292,20 @@ export async function buildPropostaPdfBuffer(
   }
   y -= GAP_SM;
 
-  drawSection("Destino", p.destino);
-  drawSection("Datas / período", p.datas);
-  if (p.data_inicio?.trim() || p.data_fim?.trim()) {
-    const di = p.data_inicio?.trim() ?? "";
-    const df = p.data_fim?.trim() ?? "";
+  drawSection("Destino", destino);
+  drawSection("Datas / período", datas);
+  if (dataInicioRef || dataFimRef) {
     const line =
-      di && df
-        ? `${di} → ${df}`
-        : di || df || "—";
+      dataInicioRef && dataFimRef
+        ? `${dataInicioRef} -> ${dataFimRef}`
+        : dataInicioRef || dataFimRef || "-";
     drawSection("Datas da viagem (referência digital)", line);
   }
-  drawBulletList("O que inclui", p.inclui);
-  drawSection("Investimento", p.valor_total, 14);
+  drawBulletList("O que inclui", inclui);
+  drawSection("Investimento", valorTotal, 14);
 
-  if (p.notas?.trim()) {
-    drawSection("Notas", p.notas.trim());
+  if (notas) {
+    drawSection("Notas", notas);
   }
 
   /* Rodapé com imagem de viagem + marca */

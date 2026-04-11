@@ -11,6 +11,9 @@ import type { SiteContent } from "@/lib/site/site-content";
 
 type Props = {
   copy: SiteContent["quizSuccess"];
+  registerIncentive: SiteContent["registerIncentive"];
+  whatsappUrl: string | null;
+  calendlyUrl: string | null;
 };
 
 function applyNome(template: string, nome: string): string {
@@ -18,7 +21,12 @@ function applyNome(template: string, nome: string): string {
   return template.split("{nome}").join(n);
 }
 
-export function ThankYouBoardingPass({ copy }: Props) {
+export function ThankYouBoardingPass({
+  copy,
+  registerIncentive,
+  whatsappUrl,
+  calendlyUrl,
+}: Props) {
   const [nome, setNome] = useState("");
   const [emailSent, setEmailSent] = useState(false);
 
@@ -40,6 +48,12 @@ export function ThankYouBoardingPass({ copy }: Props) {
   const cardBg = copy.cardBackgroundUrl.trim();
   const showCardBg =
     cardBg.startsWith("https://") || cardBg.startsWith("http://");
+
+  const nextTitle = copy.nextStepsTitle.trim();
+  const nextBody = copy.nextStepsBody.trim();
+  const waLabel = copy.whatsappCtaLabel.trim() || "WhatsApp";
+  const calLabel = copy.calendlyCtaLabel.trim() || "Marcar conversa";
+  const contaLabel = copy.criarContaCtaLabel.trim() || "Criar conta de cliente";
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16 sm:py-24">
@@ -100,6 +114,73 @@ export function ThankYouBoardingPass({ copy }: Props) {
           {emailSent && copy.emailConfirmLine.trim() ? (
             <p className="mt-4 text-sm text-ocean-600">{copy.emailConfirmLine}</p>
           ) : null}
+
+          {nextTitle || nextBody ? (
+            <div className="mt-8 rounded-xl border border-ocean-200/80 bg-white/75 px-4 py-4 text-left">
+              {nextTitle ? (
+                <h2 className="font-serif text-lg font-medium text-ocean-900">
+                  {nextTitle}
+                </h2>
+              ) : null}
+              {nextBody ? (
+                <p className="mt-2 text-sm leading-relaxed text-ocean-700">
+                  {nextBody}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {(whatsappUrl || calendlyUrl) && (
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {whatsappUrl ? (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ocean-200 bg-white px-5 text-sm font-semibold text-ocean-800 transition hover:border-ocean-400 hover:bg-ocean-50 sm:min-w-[10rem] sm:flex-none"
+                >
+                  {waLabel}
+                </a>
+              ) : null}
+              {calendlyUrl ? (
+                <a
+                  href={calendlyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ocean-200 bg-white px-5 text-sm font-semibold text-ocean-800 transition hover:border-ocean-400 hover:bg-ocean-50 sm:min-w-[10rem] sm:flex-none"
+                >
+                  {calLabel}
+                </a>
+              ) : null}
+            </div>
+          )}
+
+          <div className="mt-8 rounded-xl border border-ocean-100 bg-ocean-50/50 px-4 py-4 text-left">
+            <p className="font-medium text-ocean-900">
+              {registerIncentive.headline}
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ocean-700">
+              <li>{registerIncentive.bullet1}</li>
+              <li>{registerIncentive.bullet2}</li>
+              <li>{registerIncentive.bullet3}</li>
+            </ul>
+            <Link
+              href="/conta/registar"
+              className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-ocean-900 px-6 text-sm font-semibold text-white transition hover:bg-ocean-800"
+            >
+              {contaLabel}
+            </Link>
+            <p className="mt-3 text-xs text-ocean-600">
+              Já tens conta?{" "}
+              <Link
+                href="/conta/entrar"
+                className="font-medium text-ocean-800 underline-offset-2 hover:underline"
+              >
+                Entrar
+              </Link>
+            </p>
+          </div>
+
           {showSpotify ? (
             <a
               href={spotify}

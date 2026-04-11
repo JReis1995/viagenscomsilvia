@@ -158,6 +158,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
     try {
       const res = await fetch(`/api/crm/leads/${lead.id}/orcamento`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           buildPayload(
@@ -212,6 +213,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
     try {
       const res = await fetch(`/api/crm/leads/${lead.id}/orcamento`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           buildPayload(

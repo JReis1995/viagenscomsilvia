@@ -1,13 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import { ConsultoraSection } from "@/components/marketing/consultora-section";
-import { ExperienceFeed } from "@/components/marketing/experience-feed";
-import { InstagramSocialSection } from "@/components/marketing/instagram-social-section";
-import { LuxuryHero } from "@/components/marketing/luxury-hero";
-import { QuizSection } from "@/components/marketing/quiz-section";
+import { MarketingHomeSections } from "@/components/marketing/marketing-home-sections";
 
 import {
   DEFAULT_SITE_CONTENT,
@@ -15,7 +11,10 @@ import {
   parseSiteContentForSave,
   type SiteContent,
 } from "@/lib/site/site-content";
-import { SITE_PREVIEW_STORAGE_KEY } from "@/lib/site/site-preview-storage";
+import {
+  SITE_PREVIEW_STORAGE_KEY,
+  SITE_PREVIEW_UPDATED_EVENT,
+} from "@/lib/site/site-preview-storage";
 import type { PublishedPost } from "@/types/post";
 
 type Props = {
@@ -26,7 +25,11 @@ function subscribe(onChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();
   window.addEventListener("storage", handler);
-  return () => window.removeEventListener("storage", handler);
+  window.addEventListener(SITE_PREVIEW_UPDATED_EVENT, handler);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener(SITE_PREVIEW_UPDATED_EVENT, handler);
+  };
 }
 
 function readDraftRaw(): string {
@@ -55,14 +58,32 @@ export function SitePreviewShell({ posts }: Props) {
 
   const site = useMemo(() => parseDraft(raw), [raw]);
 
+  useEffect(() => {
+    if (site === null) return;
+    const id = decodeURIComponent(
+      window.location.hash.replace(/^#/, "").trim(),
+    );
+    if (!id) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [site]);
+
   if (site === null) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl border border-ocean-200 bg-white p-8 text-center shadow-sm">
         <p className="text-ocean-800">Não há rascunho para mostrar.</p>
         <p className="mt-2 text-sm text-ocean-600">
-          No editor do site, edita os textos e clica em «Pré-visualizar
-          rascunho» — abre esta página com o que tens no ecrã (ainda sem
-          guardar).
+          No CRM, a forma mais simples é a vista «clica no rascunho» em{" "}
+          <Link href="/crm/site" className="font-medium underline">
+            Conteúdo do site
+          </Link>
+          . Esta página antiga guarda o rascunho na memória do browser — usa-a
+          só se abrires «Abrir rascunho» a partir da vista em lista.
         </p>
         <Link
           href="/crm/site"
@@ -99,24 +120,14 @@ export function SitePreviewShell({ posts }: Props) {
           </a>
         </div>
       </div>
-      <Suspense
-        fallback={
-          <div
-            className="min-h-[min(92svh,900px)] bg-gradient-to-br from-ocean-950 via-ocean-900 to-ocean-950"
-            aria-hidden
-          />
-        }
-      >
-        <LuxuryHero copy={site.hero} quizCopy={site.quiz} />
-      </Suspense>
-      <ExperienceFeed
+      <MarketingHomeSections
+        site={site}
         posts={posts}
-        feed={site.feed}
-        featuredVideo={site.featuredVideo}
+        prefill={null}
+        quizKey="preview"
+        viewerUserId={null}
+        wishlistedPostIds={[]}
       />
-      <InstagramSocialSection copy={site.socialFeed} />
-      <ConsultoraSection copy={site.consultora} alma={site.almaTestimonials} />
-      <QuizSection copy={site.quiz} quizKey="preview" />
     </div>
   );
 }

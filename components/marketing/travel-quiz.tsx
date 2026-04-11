@@ -24,8 +24,11 @@ import {
   parsePedidoClimaParam,
   replacePedidoClimaInUrl,
 } from "@/lib/marketing/pedido-clima-url";
+import { getLeadMarketingAttributionPayload } from "@/lib/marketing/session-attribution";
+import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import { quizImmersiveShellClass } from "@/lib/marketing/quiz-vibe-theme";
 import type { SiteContent } from "@/lib/site/site-content";
+import { trackFunnelEvent } from "@/lib/analytics/funnel";
 
 const LAST_STEP = 9;
 
@@ -68,9 +71,12 @@ function formWithPrefill(prefill: PedidoOrcamentoPrefill | null): FormData {
 type Props = {
   prefill?: PedidoOrcamentoPrefill | null;
   quizCopy: SiteContent["quiz"];
+  crm?: {
+    patchQuiz: (field: keyof SiteContent["quiz"], value: string) => void;
+  };
 };
 
-export function TravelQuiz({ prefill = null, quizCopy }: Props) {
+export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -81,6 +87,9 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickDestino, setQuickDestino] = useState("");
+  const [quickLoading, setQuickLoading] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const prevStepRef = useRef(0);
@@ -89,6 +98,17 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    getLeadMarketingAttributionPayload();
+  }, []);
+
+  useEffect(() => {
+    if (step !== 3 && step !== 4) {
+      setQuickOpen(false);
+      setQuickDestino("");
+    }
+  }, [step]);
 
   const pedidoClimaQuery = searchParams.toString();
   useEffect(() => {
@@ -260,6 +280,7 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
       setError(msg);
       return;
     }
+    trackFunnelEvent("quiz_step", { step: String(step) });
     goNext();
   }
 
@@ -304,6 +325,7 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
           destino_sonho: form.destino_sonho.trim(),
           orcamento_estimado: form.orcamento_estimado,
           website_url: honeypot,
+          ...getLeadMarketingAttributionPayload(),
         }),
       });
       const data = (await res.json()) as {
@@ -312,9 +334,14 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
         emailSent?: boolean;
       };
       if (!res.ok) {
+        trackFunnelEvent("lead_submit_error", {
+          kind: "full",
+          status: String(res.status),
+        });
         setError(data.error ?? "Algo correu mal. Tenta novamente.");
         return;
       }
+      trackFunnelEvent("lead_submit", { kind: "full" });
       try {
         const first = form.nome.trim().split(/\s+/)[0] ?? "";
         sessionStorage.setItem(LEAD_THANKS_NAME_KEY, first);
@@ -328,9 +355,81 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
       document.body.style.overflow = "";
       router.push("/obrigado");
     } catch {
+      trackFunnelEvent("lead_submit_error", { kind: "full", status: "0" });
       setError("Erro de rede. Verifica a ligação e tenta de novo.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleQuickSubmit() {
+    if (form.nome.trim().length < 2) {
+      setError("Volta atrás e indica o teu nome para o pedido rápido.");
+      return;
+    }
+    const em = form.email.trim();
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      setError("Volta atrás e indica um email válido.");
+      return;
+    }
+    const tel = form.telemovel.trim();
+    const telDigits = tel.replace(/\D/g, "");
+    if (tel && (telDigits.length < 9 || telDigits.length > 15)) {
+      setError("Telemóvel inválido — corrige ou deixa em branco para o pedido rápido.");
+      return;
+    }
+    const dest = quickDestino.trim();
+    if (dest.length < 2) {
+      setError("Escreve uma linha sobre o destino ou a tua ideia (mín. 2 caracteres).");
+      return;
+    }
+    setQuickLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedido_rapido: true,
+          nome: form.nome.trim(),
+          email: em,
+          telemovel: tel,
+          destino_sonho: dest,
+          website_url: honeypot,
+          ...getLeadMarketingAttributionPayload(),
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        emailSent?: boolean;
+      };
+      if (!res.ok) {
+        trackFunnelEvent("lead_submit_error", {
+          kind: "quick",
+          status: String(res.status),
+        });
+        setError(data.error ?? "Algo correu mal. Tenta novamente.");
+        return;
+      }
+      trackFunnelEvent("lead_submit", { kind: "quick" });
+      try {
+        const first = form.nome.trim().split(/\s+/)[0] ?? "";
+        sessionStorage.setItem(LEAD_THANKS_NAME_KEY, first);
+        sessionStorage.setItem(
+          LEAD_THANKS_EMAIL_SENT_KEY,
+          String(data.emailSent ?? false),
+        );
+      } catch {
+        /* private mode */
+      }
+      document.body.style.overflow = "";
+      router.push("/obrigado");
+    } catch {
+      trackFunnelEvent("lead_submit_error", { kind: "quick", status: "0" });
+      setError("Erro de rede. Verifica a ligação e tenta de novo.");
+    } finally {
+      setQuickLoading(false);
     }
   }
 
@@ -598,6 +697,75 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
         </div>
       )}
 
+      {(step === 3 || step === 4) && (
+        <div className="mt-8 rounded-2xl border border-ocean-200/90 bg-ocean-50/60 p-5 text-left">
+          {!quickOpen ? (
+            <>
+              <p className="text-sm font-medium text-ocean-800">
+                Preferes não continuar com todos os passos agora?
+              </p>
+              <p className="mt-1 text-sm text-ocean-600">
+                Envia um{" "}
+                <span className="font-medium text-ocean-800">pedido rápido</span>{" "}
+                com o contacto que já indicaste e uma linha sobre o destino — a
+                Sílvia trata do resto. O formulário completo continua disponível
+                se quiseres voltar depois.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setQuickOpen(true);
+                }}
+                className="mt-4 text-sm font-semibold text-ocean-700 underline decoration-ocean-300 underline-offset-4 transition hover:text-ocean-900"
+              >
+                Usar pedido rápido (contacto + destino)
+              </button>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm font-medium text-ocean-900">
+                Pedido rápido
+              </p>
+              <p className="text-sm text-ocean-600">
+                Uma linha sobre onde queres ir ou o que imaginaste — depois
+                completamos pormenores contigo.
+              </p>
+              <textarea
+                value={quickDestino}
+                onChange={(e) => setQuickDestino(e.target.value)}
+                rows={3}
+                className="w-full resize-y rounded-2xl border border-ocean-100 bg-white/95 px-4 py-3 text-sm text-ocean-900 outline-none ring-ocean-500/20 focus:border-ocean-500 focus:ring-2"
+                placeholder="Ex.: Lua-de-mel nas Maldivas em maio…"
+                autoFocus
+              />
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={quickLoading}
+                  onClick={() => void handleQuickSubmit()}
+                  className="inline-flex h-11 min-w-[160px] items-center justify-center rounded-2xl bg-terracotta px-5 text-sm font-semibold text-white shadow-md transition hover:bg-terracotta-hover disabled:opacity-60"
+                >
+                  {quickLoading ? "A enviar…" : "Enviar pedido rápido"}
+                </button>
+                <button
+                  type="button"
+                  disabled={quickLoading}
+                  onClick={() => {
+                    setQuickOpen(false);
+                    setQuickDestino("");
+                    setError(null);
+                  }}
+                  className="rounded-2xl px-4 py-2.5 text-sm font-medium text-ocean-600 hover:bg-ocean-100/80"
+                >
+                  Continuar o pedido completo
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {step === 9 && (
         <div className="mx-auto max-w-lg">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
@@ -726,13 +894,27 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
           {honeypotBlock}
           <div className="text-center md:px-4">
             <h2 className="text-2xl font-semibold tracking-tight text-ocean-900 md:text-3xl">
-              Vamos desenhar a tua próxima viagem
+              {crm ? (
+                <CrmInlineText
+                  label="Cartão inicial do pedido — título"
+                  value={quizCopy.introCardTitle}
+                  onApply={(v) => crm.patchQuiz("introCardTitle", v)}
+                />
+              ) : (
+                quizCopy.introCardTitle
+              )}
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-ocean-600">
-              Poucos passos, sem pressa: começamos pelos teus dados de contacto e
-              depois pelo clima, estilo e sonho de viagem — para a Sílvia te
-              responder com uma proposta à medida. O formulário abre em ecrã
-              inteiro para te concentrares.
+              {crm ? (
+                <CrmInlineText
+                  label="Cartão inicial do pedido — texto"
+                  multiline
+                  value={quizCopy.introCardBody}
+                  onApply={(v) => crm.patchQuiz("introCardBody", v)}
+                />
+              ) : (
+                quizCopy.introCardBody
+              )}
             </p>
             {prefill?.temaDestaque ? (
               <p className="mx-auto mt-6 max-w-lg rounded-2xl border border-ocean-100 bg-ocean-50/80 px-5 py-4 text-sm leading-relaxed text-ocean-800">
@@ -762,10 +944,23 @@ export function TravelQuiz({ prefill = null, quizCopy }: Props) {
             ) : null}
             <button
               type="button"
-              onClick={goNext}
+              onClick={() => {
+                trackFunnelEvent("quiz_open");
+                goNext();
+              }}
               className="mt-10 inline-flex h-14 min-w-[200px] items-center justify-center rounded-3xl bg-terracotta px-8 text-base font-semibold text-white shadow-lg transition hover:bg-terracotta-hover"
             >
-              Começar o meu pedido
+              {crm ? (
+                <CrmInlineText
+                  label="Cartão inicial — texto do botão"
+                  value={quizCopy.introCardCtaLabel}
+                  onApply={(v) => crm.patchQuiz("introCardCtaLabel", v)}
+                  className="text-white"
+                  variant="onDark"
+                />
+              ) : (
+                quizCopy.introCardCtaLabel
+              )}
             </button>
           </div>
         </div>

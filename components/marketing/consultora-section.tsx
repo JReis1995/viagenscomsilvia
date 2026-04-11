@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
+import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import { AlmaTestimonialsSlider } from "@/components/marketing/alma-testimonials-slider";
 import type { SiteContent } from "@/lib/site/site-content";
 import {
@@ -29,9 +30,24 @@ function PortraitFallback() {
 type Props = {
   copy: SiteContent["consultora"];
   alma: SiteContent["almaTestimonials"];
+  crm?: {
+    patchConsultora: (
+      field: keyof SiteContent["consultora"],
+      value: string,
+    ) => void;
+    patchAlmaHeading: (
+      field: "eyebrow" | "title",
+      value: string,
+    ) => void;
+    patchAlmaItem: (
+      index: number,
+      field: "quote" | "attribution",
+      value: string,
+    ) => void;
+  };
 };
 
-export function ConsultoraSection({ copy, alma }: Props) {
+export function ConsultoraSection({ copy, alma, crm }: Props) {
   const reduceMotion = useReducedMotion();
   const portraitUrl =
     copy.portraitUrl.trim() !== ""
@@ -50,9 +66,15 @@ export function ConsultoraSection({ copy, alma }: Props) {
     portraitUrl &&
     (portraitUrl.startsWith("http://") || portraitUrl.startsWith("https://"));
 
+  const lock = crm ? "pointer-events-none" : "";
+  const ctaLock = crm
+    ? "pointer-events-none [&_.crm-consultora-pe]:pointer-events-auto"
+    : "";
+
   return (
     <section
-      className="border-t border-ocean-100/70 bg-sand px-5 py-20 sm:px-6 md:py-28"
+      id="secao-consultora"
+      className="scroll-mt-28 border-t border-ocean-100/70 bg-sand px-5 py-20 sm:px-6 md:py-28"
       aria-labelledby="consultora-heading"
     >
       <div className="mx-auto max-w-6xl space-y-12 lg:space-y-16">
@@ -67,26 +89,69 @@ export function ConsultoraSection({ copy, alma }: Props) {
           }}
         >
           <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-ocean-600">
-            {copy.eyebrow}
+            {crm ? (
+              <CrmInlineText
+                label="Consultora — linha pequena"
+                value={copy.eyebrow}
+                onApply={(v) => crm.patchConsultora("eyebrow", v)}
+              />
+            ) : (
+              copy.eyebrow
+            )}
           </p>
           <h2
             id="consultora-heading"
             className="mt-4 font-serif text-3xl font-normal tracking-tight text-ocean-900 md:text-[2.35rem] md:leading-tight"
           >
-            {copy.title}
+            {crm ? (
+              <CrmInlineText
+                label="Consultora — título"
+                value={copy.title}
+                onApply={(v) => crm.patchConsultora("title", v)}
+              />
+            ) : (
+              copy.title
+            )}
           </h2>
           <p className="mt-6 text-base leading-relaxed text-ocean-700 md:text-lg">
-            {copy.p1}
+            {crm ? (
+              <CrmInlineText
+                label="Consultora — primeiro parágrafo"
+                multiline
+                value={copy.p1}
+                onApply={(v) => crm.patchConsultora("p1", v)}
+              />
+            ) : (
+              copy.p1
+            )}
           </p>
           <p className="mt-5 text-base leading-relaxed text-ocean-700 md:text-lg">
-            {copy.p2}
+            {crm ? (
+              <CrmInlineText
+                label="Consultora — segundo parágrafo"
+                multiline
+                value={copy.p2}
+                onApply={(v) => crm.patchConsultora("p2", v)}
+              />
+            ) : (
+              copy.p2
+            )}
           </p>
           <blockquote className="mt-10 rounded-[1.75rem] border border-ocean-100/90 bg-white/70 px-6 py-6 shadow-sm backdrop-blur-sm md:px-8 md:py-7">
             <p className="font-serif text-lg italic leading-relaxed text-ocean-800 md:text-xl">
-              {copy.quote}
+              {crm ? (
+                <CrmInlineText
+                  label="Consultora — citação"
+                  multiline
+                  value={copy.quote}
+                  onApply={(v) => crm.patchConsultora("quote", v)}
+                />
+              ) : (
+                copy.quote
+              )}
             </p>
           </blockquote>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className={`mt-8 flex flex-wrap gap-3 ${lock}`}>
             <a
               href={photoPost}
               target="_blank"
@@ -109,9 +174,19 @@ export function ConsultoraSection({ copy, alma }: Props) {
           </div>
           <a
             href="#pedido-orcamento"
-            className="mt-10 inline-flex h-14 min-h-[3.5rem] items-center justify-center rounded-full bg-ocean-900 px-9 text-sm font-semibold tracking-wide text-white shadow-[0_18px_40px_-20px_rgba(15,61,57,0.5)] transition hover:bg-ocean-800"
+            className={`mt-10 inline-flex h-14 min-h-[3.5rem] items-center justify-center rounded-full bg-ocean-900 px-9 text-sm font-semibold tracking-wide text-white shadow-[0_18px_40px_-20px_rgba(15,61,57,0.5)] transition hover:bg-ocean-800 ${ctaLock}`}
           >
-            {copy.ctaQuiz}
+            {crm ? (
+              <CrmInlineText
+                label="Texto do botão pedido de proposta"
+                variant="onDark"
+                value={copy.ctaQuiz}
+                onApply={(v) => crm.patchConsultora("ctaQuiz", v)}
+                className="crm-consultora-pe text-white"
+              />
+            ) : (
+              copy.ctaQuiz
+            )}
           </a>
         </motion.div>
 
@@ -150,6 +225,14 @@ export function ConsultoraSection({ copy, alma }: Props) {
           eyebrow={alma.eyebrow}
           title={alma.title}
           items={alma.items}
+          crm={
+            crm
+              ? {
+                  patchHeading: crm.patchAlmaHeading,
+                  patchItem: crm.patchAlmaItem,
+                }
+              : undefined
+          }
         />
       </div>
     </section>

@@ -1,8 +1,16 @@
 import { z } from "zod";
 
+import { DEFAULT_HOME_ORDER_CSV } from "@/lib/site/home-section-order";
+
 const line = z.string().max(4000);
 
 const siteContentSchema = z.object({
+  layout: z
+    .object({
+      /** hero,feed,social,consultora,quiz — ordem dos blocos na home. */
+      homeOrderCsv: z.string().max(120),
+    })
+    .strict(),
   hero: z
     .object({
       eyebrow: line,
@@ -57,6 +65,10 @@ const siteContentSchema = z.object({
     .strict(),
   quiz: z
     .object({
+      /** Cartão branco antes de «Começar o pedido». */
+      introCardTitle: line,
+      introCardBody: line,
+      introCardCtaLabel: line,
       eyebrow: line,
       title: line,
       body: line,
@@ -66,6 +78,16 @@ const siteContentSchema = z.object({
       climaLabelPraia: line,
       climaLabelCidade: line,
       climaLabelMisto: line,
+      /** Linha pequena acima da prova social (ex.: «Confiança»). */
+      socialProofEyebrow: line,
+      /** Frase de confiança ao lado do formulário; editável no CRM. */
+      socialProofStat: line,
+      /** CTA secundário (ex. WhatsApp); o href pode ficar vazio e usar variáveis de ambiente. */
+      falarComSilviaLabel: line,
+      /** WhatsApp alternativo: wa.me… se quiseres sobrescrever o env; também aceita mailto:. */
+      falarComSilviaUrl: z.string().max(2048),
+      /** Perfil Instagram (mensagens); ou usa NEXT_PUBLIC_CONTACT_INSTAGRAM_URL. */
+      falarComSilviaInstagramUrl: z.string().max(2048),
     })
     .strict(),
   quizSuccess: z
@@ -78,6 +100,11 @@ const siteContentSchema = z.object({
       backHomeLabel: line,
       emailConfirmLine: line,
       cardBackgroundUrl: line,
+      nextStepsTitle: line,
+      nextStepsBody: line,
+      whatsappCtaLabel: line,
+      calendlyCtaLabel: line,
+      criarContaCtaLabel: line,
     })
     .strict(),
   almaTestimonials: z
@@ -132,6 +159,9 @@ const siteContentSchema = z.object({
 export type SiteContent = z.infer<typeof siteContentSchema>;
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
+  layout: {
+    homeOrderCsv: DEFAULT_HOME_ORDER_CSV,
+  },
   hero: {
     eyebrow: "Consultoria de viagens · Boutique",
     line1: "O mundo não espera.",
@@ -183,6 +213,10 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     instagramUrl: "",
   },
   quiz: {
+    introCardTitle: "Vamos desenhar a tua próxima viagem",
+    introCardBody:
+      "Poucos passos, sem pressa: começamos pelos teus dados de contacto e depois pelo clima, estilo e sonho de viagem — para a Sílvia te responder com uma proposta à medida. O formulário abre em ecrã inteiro para te concentrares.",
+    introCardCtaLabel: "Começar o meu pedido",
     eyebrow: "Da inspiração ao plano",
     title: "Inspiraste-te com uma publicação? Agora faz esse sonho ganhar forma",
     body: "Este é o teu pedido de proposta: em minutos a Sílvia percebe o teu estilo, quem te acompanha, o destino que imaginaste (mesmo que ainda seja uma ideia) e a faixa de investimento. Quanto mais claro fores, mais personalizada será a primeira resposta.",
@@ -193,6 +227,12 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     climaLabelPraia: "Sol e praia",
     climaLabelCidade: "Cidade e cultura",
     climaLabelMisto: "Quero misturar tudo",
+    socialProofEyebrow: "Confiança",
+    socialProofStat:
+      "A Sílvia lê cada pedido em pessoa e responde por email ou telefone — sem robôs nem orçamentos genéricos. Quanto mais claro fores aqui, mais personalizada fica a primeira resposta.",
+    falarComSilviaLabel: "Falar com a Sílvia",
+    falarComSilviaUrl: "",
+    falarComSilviaInstagramUrl: "",
   },
   quizSuccess: {
     greetingLine: "Olá, {nome}!",
@@ -205,6 +245,12 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     emailConfirmLine:
       "Enviámos um email de confirmação — verifica a pasta de spam se não o vires.",
     cardBackgroundUrl: "",
+    nextStepsTitle: "O que acontece nas próximas 24–48 horas",
+    nextStepsBody:
+      "A Sílvia lê o teu pedido com calma. Podes receber um email ou uma mensagem com perguntas de afinação. Depois disso, avançamos com ideias e valores alinhados com o que pediste — sem pressa e sem pacotes genéricos.",
+    whatsappCtaLabel: "Mensagem no WhatsApp",
+    calendlyCtaLabel: "Marcar uma conversa",
+    criarContaCtaLabel: "Criar conta de cliente",
   },
   almaTestimonials: {
     eyebrow: "Viagens com alma",
@@ -313,6 +359,10 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
   }
   const p = payload as Record<string, unknown>;
   const merged: SiteContent = {
+    layout: mergeSection(
+      base.layout,
+      p.layout as Record<string, unknown> | undefined,
+    ) as SiteContent["layout"],
     hero: mergeSection(base.hero, p.hero as Record<string, unknown>) as SiteContent["hero"],
     feed: mergeSection(base.feed, p.feed as Record<string, unknown>) as SiteContent["feed"],
     featuredVideo: mergeSection(

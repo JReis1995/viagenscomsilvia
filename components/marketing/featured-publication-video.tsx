@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
+import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import type { SiteContent } from "@/lib/site/site-content";
 import {
   getFeaturedVideoPosterUrl,
@@ -25,9 +26,12 @@ function LargePlayIcon() {
 
 type Props = {
   copy: SiteContent["featuredVideo"];
+  crm?: {
+    patch: (field: keyof SiteContent["featuredVideo"], value: string) => void;
+  };
 };
 
-export function FeaturedPublicationVideo({ copy }: Props) {
+export function FeaturedPublicationVideo({ copy, crm }: Props) {
   const reduceMotion = useReducedMotion();
   const href =
     copy.instagramUrl.trim() !== ""
@@ -38,6 +42,8 @@ export function FeaturedPublicationVideo({ copy }: Props) {
       ? copy.posterUrl.trim()
       : getFeaturedVideoPosterUrl();
 
+  const lock = crm ? "pointer-events-none" : "";
+
   return (
     <motion.div
       className="mt-14"
@@ -47,13 +53,21 @@ export function FeaturedPublicationVideo({ copy }: Props) {
       transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] as const }}
     >
       <p className="mb-4 text-[11px] font-medium uppercase tracking-[0.35em] text-ocean-500">
-        {copy.eyebrow}
+        {crm ? (
+          <CrmInlineText
+            label="Linha pequena do vídeo em destaque"
+            value={copy.eyebrow}
+            onApply={(v) => crm.patch("eyebrow", v)}
+          />
+        ) : (
+          copy.eyebrow
+        )}
       </p>
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="group relative block overflow-hidden rounded-[1.75rem] shadow-[0_28px_64px_-28px_rgba(15,61,57,0.45)] ring-1 ring-ocean-900/10 md:rounded-[2rem]"
+        className={`group relative block overflow-hidden rounded-[1.75rem] shadow-[0_28px_64px_-28px_rgba(15,61,57,0.45)] ring-1 ring-ocean-900/10 md:rounded-[2rem] ${lock}`}
       >
         <div className="relative aspect-[21/11] min-h-[220px] w-full sm:aspect-[21/9] sm:min-h-[280px] md:min-h-[320px]">
           {poster ? (
@@ -77,14 +91,48 @@ export function FeaturedPublicationVideo({ copy }: Props) {
           ) : null}
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-6 text-center md:flex-row md:gap-8 md:text-left">
             <LargePlayIcon />
-            <div className="max-w-md text-white">
+            <div className={`max-w-md text-white ${crm ? "[&_.crm-ov]:pointer-events-auto" : ""}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-white/75">
-                {copy.kicker}
+                {crm ? (
+                  <CrmInlineText
+                    label="Etiqueta do vídeo em destaque"
+                    variant="onDark"
+                    value={copy.kicker}
+                    onApply={(v) => crm.patch("kicker", v)}
+                    className="crm-ov"
+                  />
+                ) : (
+                  copy.kicker
+                )}
               </p>
               <p className="mt-2 font-serif text-2xl font-normal leading-tight md:text-3xl">
-                {copy.title}
+                {crm ? (
+                  <CrmInlineText
+                    label="Título do vídeo em destaque"
+                    variant="onDark"
+                    multiline
+                    value={copy.title}
+                    onApply={(v) => crm.patch("title", v)}
+                    className="crm-ov"
+                  />
+                ) : (
+                  copy.title
+                )}
               </p>
-              <p className="mt-3 text-sm text-white/80">{copy.subtitle}</p>
+              <p className="mt-3 text-sm text-white/80">
+                {crm ? (
+                  <CrmInlineText
+                    label="Subtítulo do vídeo em destaque"
+                    variant="onDark"
+                    multiline
+                    value={copy.subtitle}
+                    onApply={(v) => crm.patch("subtitle", v)}
+                    className="crm-ov"
+                  />
+                ) : (
+                  copy.subtitle
+                )}
+              </p>
             </div>
           </div>
         </div>
