@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   },
   description:
     "Consultoria de viagens personalizada — planeamento sob medida para a tua próxima aventura.",
+  icons: {
+    icon: [{ url: "/globe.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({
