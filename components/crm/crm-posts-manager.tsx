@@ -27,6 +27,10 @@ export type CrmPostRow = {
   status: boolean;
   data_publicacao: string;
   ordem_site: number | null;
+  membros_apenas?: boolean | null;
+  slug_destino?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 type Props = {
@@ -50,6 +54,10 @@ function emptyForm(): CrmPostInput {
     status: true,
     data_publicacao: localNowForInput(),
     ordem_site: 0,
+    membros_apenas: false,
+    slug_destino: "",
+    latitude: null,
+    longitude: null,
   };
 }
 
@@ -98,6 +106,10 @@ export function CrmPostsManager({ initialPosts }: Props) {
       status: p.status,
       data_publicacao: toDatetimeLocalValue(p.data_publicacao),
       ordem_site: p.ordem_site ?? 0,
+      membros_apenas: p.membros_apenas === true,
+      slug_destino: p.slug_destino ?? "",
+      latitude: p.latitude ?? null,
+      longitude: p.longitude ?? null,
     });
     setMessage(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -132,6 +144,10 @@ export function CrmPostsManager({ initialPosts }: Props) {
                       preco_desde: payload.preco_desde || null,
                       link_cta: payload.link_cta || null,
                       data_publicacao: payload.data_publicacao,
+                      membros_apenas: payload.membros_apenas,
+                      slug_destino: payload.slug_destino || null,
+                      latitude: payload.latitude ?? null,
+                      longitude: payload.longitude ?? null,
                     }
                   : p,
               ),
@@ -265,6 +281,10 @@ export function CrmPostsManager({ initialPosts }: Props) {
                       <p className="mt-1 text-xs text-ocean-500">
                         {p.tipo} · pos. {p.ordem_site ?? 0} ·{" "}
                         {p.status ? "visível" : "rascunho"}
+                        {p.membros_apenas ? " · membros" : ""}
+                        {p.latitude != null && p.longitude != null
+                          ? " · mapa"
+                          : ""}
                       </p>
                     </div>
                   </button>
@@ -460,6 +480,84 @@ export function CrmPostsManager({ initialPosts }: Props) {
                   </span>
                 </span>
               </label>
+              <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-ocean-200 bg-white p-4 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-ocean-300"
+                  checked={form.membros_apenas}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      membros_apenas: e.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="font-medium text-ocean-900">
+                    Só para quem tem conta
+                  </span>
+                  <span className="mt-1 block text-xs text-ocean-600">
+                    Não aparece no site público — só em «Roteiros secretos» na
+                    área do cliente.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-ocean-400">
+                Mapa (opcional)
+              </p>
+              <p className="text-sm font-medium text-ocean-800">
+                Coordenadas e slug do destino
+              </p>
+              <label className="mt-3 block text-sm">
+                <span className="text-ocean-700">Slug (ex.: maldivas)</span>
+                <input
+                  className={inputCls}
+                  value={form.slug_destino ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, slug_destino: e.target.value }))
+                  }
+                  placeholder="Para cruzar com propostas no CRM"
+                />
+              </label>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-ocean-700">Latitude</span>
+                  <input
+                    className={inputCls}
+                    value={form.latitude ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      setForm((f) => ({
+                        ...f,
+                        latitude: v === "" ? null : Number(v),
+                      }));
+                    }}
+                    placeholder="ex.: 3.2028"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-ocean-700">Longitude</span>
+                  <input
+                    className={inputCls}
+                    value={form.longitude ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      setForm((f) => ({
+                        ...f,
+                        longitude: v === "" ? null : Number(v),
+                      }));
+                    }}
+                    placeholder="ex.: 73.2207"
+                  />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-ocean-500">
+                Com latitude e longitude preenchidas, o pin aparece em{" "}
+                <strong className="text-ocean-800">/mapa</strong> no site.
+              </p>
             </div>
 
             <div className="flex flex-col gap-3 border-t border-ocean-100 pt-6 sm:flex-row sm:flex-wrap">

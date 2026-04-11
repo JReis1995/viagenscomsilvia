@@ -5,6 +5,7 @@ import { useMemo, useSyncExternalStore } from "react";
 
 import { ConsultoraSection } from "@/components/marketing/consultora-section";
 import { ExperienceFeed } from "@/components/marketing/experience-feed";
+import { InstagramSocialSection } from "@/components/marketing/instagram-social-section";
 import { LuxuryHero } from "@/components/marketing/luxury-hero";
 import { QuizSection } from "@/components/marketing/quiz-section";
 
@@ -104,6 +105,7 @@ export function SitePreviewShell({ posts }: Props) {
         feed={site.feed}
         featuredVideo={site.featuredVideo}
       />
+      <InstagramSocialSection copy={site.socialFeed} />
       <ConsultoraSection copy={site.consultora} />
       <QuizSection copy={site.quiz} quizKey="preview" />
     </div>

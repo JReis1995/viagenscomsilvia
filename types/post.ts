@@ -12,3 +12,9 @@ export type PublishedPost = {
   /** Ordem no site: valores mais baixos aparecem primeiro no feed. */
   ordem_site: number;
 };
+
+export type MapPinPost = PublishedPost & {
+  latitude: number;
+  longitude: number;
+  slug_destino: string | null;
+};

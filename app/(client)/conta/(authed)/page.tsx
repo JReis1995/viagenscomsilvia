@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { ClientLeadNoteForm } from "@/components/conta/client-lead-note-form";
+import { PromoAlertsForm } from "@/components/conta/promo-alerts-form";
 import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { leadStatusLabelForClient } from "@/lib/crm/lead-status-client";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +49,16 @@ export default async function ContaHomePage({
     .select("id, lead_id, message, created_at")
     .order("created_at", { ascending: false });
 
+  let promoOptIn = false;
+  if (user?.id) {
+    const { data: promoPrefs } = await supabase
+      .from("promo_alert_prefs")
+      .select("opt_in")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    promoOptIn = promoPrefs?.opt_in === true;
+  }
+
   if (notesError) {
     console.error("[conta] lead_client_updates:", notesError.message);
   }
@@ -85,6 +97,8 @@ export default async function ContaHomePage({
           O painel CRM é só para a consultora. Esta é a tua área de cliente.
         </div>
       ) : null}
+
+      <PromoAlertsForm initialOptIn={promoOptIn} />
 
       {leadsError ? (
         <div
@@ -198,6 +212,12 @@ export default async function ContaHomePage({
                         {proposta.valor_total}
                       </li>
                     </ul>
+                    <Link
+                      href={`/conta/pedidos/${lead.id}`}
+                      className="mt-4 inline-flex rounded-full bg-ocean-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-ocean-800"
+                    >
+                      Abrir itinerário interativo
+                    </Link>
                   </div>
                 ) : null}
 

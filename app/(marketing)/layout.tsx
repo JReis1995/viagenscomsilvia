@@ -50,6 +50,12 @@ export default async function MarketingLayout({
               Pedir orçamento
             </Link>
             <Link
+              href="/mapa"
+              className="rounded-2xl px-3 py-2 text-sm font-medium text-ocean-700 transition-colors hover:bg-ocean-50 sm:px-4"
+            >
+              Mapa
+            </Link>
+            <Link
               href={painelHref}
               className="rounded-2xl px-3 py-2 text-sm font-medium text-ocean-700 transition-colors hover:bg-ocean-50 sm:px-4"
             >

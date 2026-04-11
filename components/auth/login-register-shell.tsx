@@ -5,8 +5,13 @@ import { useSearchParams } from "next/navigation";
 
 import { ClientRegisterForm } from "@/components/auth/client-register-form";
 import { LoginForm } from "@/components/auth/login-form";
+import type { SiteContent } from "@/lib/site/site-content";
 
-export function LoginRegisterShell() {
+type Props = {
+  registerIncentive?: SiteContent["registerIncentive"];
+};
+
+export function LoginRegisterShell({ registerIncentive }: Props) {
   const searchParams = useSearchParams();
   const isRegistar = searchParams.get("registar") === "1";
   const next = searchParams.get("next");
@@ -26,6 +31,18 @@ export function LoginRegisterShell() {
             que no pedido de proposta da página inicial para veres o teu pedido
             aqui.
           </p>
+          {registerIncentive ? (
+            <div className="mt-4 rounded-xl border border-ocean-100 bg-ocean-50/60 px-4 py-3 text-sm text-ocean-800">
+              <p className="font-medium text-ocean-900">
+                {registerIncentive.headline}
+              </p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-ocean-700">
+                <li>{registerIncentive.bullet1}</li>
+                <li>{registerIncentive.bullet2}</li>
+                <li>{registerIncentive.bullet3}</li>
+              </ul>
+            </div>
+          ) : null}
         </div>
         <ClientRegisterForm />
         <p className="text-center text-sm text-ocean-600">

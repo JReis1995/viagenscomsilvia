@@ -15,10 +15,18 @@ import type { LeadBoardRow } from "@/types/lead";
 
 type ClientThreadEntry = { message: string; created_at: string };
 
+type ClientDecisionEntry = {
+  decision: string;
+  note: string | null;
+  created_at: string;
+};
+
 type Props = {
   initialLeads: LeadBoardRow[];
   /** Mensagens enviadas pelo cliente (área /conta), por id da lead. */
   clientThreadsByLeadId?: Record<string, ClientThreadEntry[]>;
+  /** Aprovações / pedidos de alteração (área /conta). */
+  clientDecisionsByLeadId?: Record<string, ClientDecisionEntry[]>;
 };
 
 function formatPedidoDate(iso: string): string {
@@ -32,6 +40,50 @@ function formatPedidoDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function decisionLabelPt(d: string): string {
+  if (d === "approved") return "Orçamento aprovado";
+  if (d === "changes_requested") return "Pediu alterações";
+  return d;
+}
+
+function ClientDecisionsPanel({
+  leadId,
+  decisions,
+}: {
+  leadId: string;
+  decisions: Record<string, ClientDecisionEntry[]>;
+}) {
+  const list = decisions[leadId];
+  if (!list?.length) return null;
+  return (
+    <details className="mt-3 rounded-lg border border-emerald-200/80 bg-emerald-50/50 px-2 py-2 text-left">
+      <summary className="cursor-pointer list-none text-xs font-semibold text-emerald-900 [&::-webkit-details-marker]:hidden">
+        Resposta à proposta ({list.length})
+      </summary>
+      <ul className="mt-2 max-h-36 space-y-2 overflow-y-auto border-t border-emerald-100 pt-2">
+        {list.map((m, i) => (
+          <li
+            key={`${m.created_at}-${i}`}
+            className="rounded-md bg-white/90 px-2 py-1.5 text-xs text-ocean-800"
+          >
+            <p className="font-semibold text-emerald-900">
+              {decisionLabelPt(m.decision)}
+            </p>
+            {m.note?.trim() ? (
+              <p className="mt-1 whitespace-pre-wrap text-ocean-800">
+                {m.note.trim()}
+              </p>
+            ) : null}
+            <p className="mt-0.5 text-[10px] text-ocean-500">
+              {formatPedidoDate(m.created_at)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
 }
 
 function ClientThreadPanel({
@@ -68,6 +120,7 @@ function ClientThreadPanel({
 export function LeadsKanban({
   initialLeads,
   clientThreadsByLeadId = {},
+  clientDecisionsByLeadId = {},
 }: Props) {
   const [leads, setLeads] = useState<LeadBoardRow[]>(initialLeads);
   const leadsRef = useRef(leads);
@@ -241,6 +294,10 @@ export function LeadsKanban({
                           leadId={lead.id}
                           threads={clientThreadsByLeadId}
                         />
+                        <ClientDecisionsPanel
+                          leadId={lead.id}
+                          decisions={clientDecisionsByLeadId}
+                        />
                       </div>
                       <button
                         type="button"
@@ -363,6 +420,10 @@ export function LeadsKanban({
                     <ClientThreadPanel
                       leadId={lead.id}
                       threads={clientThreadsByLeadId}
+                    />
+                    <ClientDecisionsPanel
+                      leadId={lead.id}
+                      decisions={clientDecisionsByLeadId}
                     />
                     <button
                       type="button"

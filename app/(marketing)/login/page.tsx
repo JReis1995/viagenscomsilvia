@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { LoginRegisterShell } from "@/components/auth/login-register-shell";
+import { fetchSiteContent } from "@/lib/site/fetch-site-content";
 
 export const metadata: Metadata = {
   title: "Entrar",
@@ -15,6 +16,7 @@ type Props = {
 export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
   const authError = params.error === "auth";
+  const site = await fetchSiteContent();
 
   return (
     <div className="mx-auto flex max-w-lg flex-1 flex-col justify-center px-6 py-16">
@@ -29,7 +31,7 @@ export default async function LoginPage({ searchParams }: Props) {
             <p className="text-sm text-ocean-600">A carregar…</p>
           }
         >
-          <LoginRegisterShell />
+          <LoginRegisterShell registerIncentive={site.registerIncentive} />
         </Suspense>
       </div>
     </div>

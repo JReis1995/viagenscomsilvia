@@ -17,7 +17,7 @@ export function ContaHeader({ email }: { email?: string | null }) {
 
   return (
     <header className="border-b border-ocean-100 bg-white/90 shadow-sm backdrop-blur-sm">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-4">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
           <Link
             href="/"
@@ -28,6 +28,26 @@ export function ContaHeader({ email }: { email?: string | null }) {
           <span className="hidden text-ocean-300 sm:inline">·</span>
           <span className="text-xs text-ocean-600 sm:text-sm">A minha conta</span>
         </div>
+        <nav className="flex flex-wrap gap-2 text-xs font-medium sm:text-sm">
+          <Link
+            href="/conta"
+            className="rounded-full border border-ocean-200 px-3 py-1.5 text-ocean-700 hover:bg-ocean-50"
+          >
+            Pedidos
+          </Link>
+          <Link
+            href="/conta/wishlist"
+            className="rounded-full border border-ocean-200 px-3 py-1.5 text-ocean-700 hover:bg-ocean-50"
+          >
+            Wishlist
+          </Link>
+          <Link
+            href="/conta/roteiros"
+            className="rounded-full border border-ocean-200 px-3 py-1.5 text-ocean-700 hover:bg-ocean-50"
+          >
+            Roteiros secretos
+          </Link>
+        </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {email ? (
             <span className="hidden max-w-[140px] truncate text-xs text-ocean-500 sm:inline sm:max-w-[200px] sm:text-sm">

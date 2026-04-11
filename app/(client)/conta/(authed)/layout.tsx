@@ -25,7 +25,7 @@ export default async function ContaAuthedLayout({
   return (
     <>
       <ContaHeader email={user.email} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8 md:py-10">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8 md:py-10">
         {children}
       </main>
     </>

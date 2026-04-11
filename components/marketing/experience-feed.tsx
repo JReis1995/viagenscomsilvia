@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 
 import { FeaturedPublicationVideo } from "@/components/marketing/featured-publication-video";
+import { FeedWishlistButton } from "@/components/marketing/feed-wishlist-button";
 import { buildPedidoOrcamentoHrefFromPost } from "@/lib/marketing/pedido-orcamento";
 import {
   getYoutubeThumbnailUrl,
@@ -58,9 +59,13 @@ function PlayIcon() {
 function FeedCard({
   post,
   index,
+  viewerUserId,
+  wishlistedPostIds,
 }: {
   post: PublishedPost;
   index: number;
+  viewerUserId: string | null;
+  wishlistedPostIds: string[];
 }) {
   const href =
     post.link_cta?.trim() || buildPedidoOrcamentoHrefFromPost(post);
@@ -77,6 +82,13 @@ function FeedCard({
       transition={{ duration: 0.55, delay: Math.min(index * 0.06, 0.36) }}
       className={`group relative ${bentoClass(post.tipo, index)}`}
     >
+      {viewerUserId ? (
+        <FeedWishlistButton
+          postId={post.id}
+          initialSaved={wishlistedPostIds.includes(post.id)}
+          compactTop={isPromo}
+        />
+      ) : null}
       <Link
         href={href}
         className={`relative flex h-full min-h-[inherit] flex-col overflow-hidden rounded-3xl bg-ocean-900 shadow-[0_24px_48px_-28px_rgba(12,74,110,0.45)] ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_32px_56px_-24px_rgba(12,74,110,0.5)] ${
@@ -146,9 +158,17 @@ type Props = {
   posts: PublishedPost[];
   feed: SiteContent["feed"];
   featuredVideo: SiteContent["featuredVideo"];
+  viewerUserId?: string | null;
+  wishlistedPostIds?: string[];
 };
 
-export function ExperienceFeed({ posts, feed, featuredVideo }: Props) {
+export function ExperienceFeed({
+  posts,
+  feed,
+  featuredVideo,
+  viewerUserId = null,
+  wishlistedPostIds = [],
+}: Props) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -197,7 +217,13 @@ export function ExperienceFeed({ posts, feed, featuredVideo }: Props) {
             </p>
             <div className="mt-6 grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-12 xl:gap-6">
               {posts.map((post, index) => (
-                <FeedCard key={post.id} post={post} index={index} />
+                <FeedCard
+                  key={post.id}
+                  post={post}
+                  index={index}
+                  viewerUserId={viewerUserId}
+                  wishlistedPostIds={wishlistedPostIds}
+                />
               ))}
             </div>
           </div>

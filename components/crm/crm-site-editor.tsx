@@ -10,7 +10,7 @@ type Props = {
   initial: SiteContent;
 };
 
-type TabId = "hero" | "feed" | "video" | "quiz" | "consultora";
+type TabId = "hero" | "feed" | "video" | "quiz" | "consultora" | "registo" | "social";
 
 const TABS: {
   id: TabId;
@@ -41,6 +41,16 @@ const TABS: {
     id: "consultora",
     label: "A tua consultora",
     sub: "Texto e fotos desta secção",
+  },
+  {
+    id: "registo",
+    label: "Criar conta",
+    sub: "Benefícios no ecrã de registo",
+  },
+  {
+    id: "social",
+    label: "Instagram na página",
+    sub: "Links ou código embed na home",
   },
 ];
 
@@ -423,6 +433,72 @@ export function CrmSiteEditor({ initial }: Props) {
               label="Texto do botão para o pedido de proposta"
               value={data.consultora.ctaQuiz}
               onChange={(v) => patch("consultora", "ctaQuiz", v)}
+            />
+          </fieldset>
+        ) : null}
+
+        {tab === "registo" ? (
+          <fieldset className="space-y-4 rounded-2xl border border-ocean-100 bg-white p-6 shadow-sm">
+            <legend className="px-1 text-lg font-semibold text-ocean-900">
+              Incentivo ao registo
+            </legend>
+            <Field
+              label="Título / headline"
+              value={data.registerIncentive.headline}
+              onChange={(v) => patch("registerIncentive", "headline", v)}
+            />
+            <Field
+              label="Benefício 1"
+              value={data.registerIncentive.bullet1}
+              onChange={(v) => patch("registerIncentive", "bullet1", v)}
+            />
+            <Field
+              label="Benefício 2"
+              value={data.registerIncentive.bullet2}
+              onChange={(v) => patch("registerIncentive", "bullet2", v)}
+            />
+            <Field
+              label="Benefício 3"
+              value={data.registerIncentive.bullet3}
+              onChange={(v) => patch("registerIncentive", "bullet3", v)}
+            />
+          </fieldset>
+        ) : null}
+
+        {tab === "social" ? (
+          <fieldset className="space-y-4 rounded-2xl border border-ocean-100 bg-white p-6 shadow-sm">
+            <legend className="px-1 text-lg font-semibold text-ocean-900">
+              Secção Instagram / redes (home)
+            </legend>
+            <Field
+              label="Linha pequena"
+              value={data.socialFeed.eyebrow}
+              onChange={(v) => patch("socialFeed", "eyebrow", v)}
+            />
+            <Field
+              label="Título"
+              value={data.socialFeed.title}
+              onChange={(v) => patch("socialFeed", "title", v)}
+            />
+            <Field
+              label="Subtítulo"
+              value={data.socialFeed.subtitle}
+              onChange={(v) => patch("socialFeed", "subtitle", v)}
+              multiline
+            />
+            <Field
+              label="URLs dos posts (uma por linha)"
+              help="Alternativa ao embed: cada linha deve ser um link completo para um post ou reel."
+              value={data.socialFeed.postUrls}
+              onChange={(v) => patch("socialFeed", "postUrls", v)}
+              multiline
+            />
+            <Field
+              label="Código embed (opcional)"
+              help="Se preencheres, tem prioridade sobre a lista de URLs. Cola o iframe/script que o Instagram fornece."
+              value={data.socialFeed.embedHtml}
+              onChange={(v) => patch("socialFeed", "embedHtml", v)}
+              multiline
             />
           </fieldset>
         ) : null}

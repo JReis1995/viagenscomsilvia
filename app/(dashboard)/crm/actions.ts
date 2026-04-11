@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { isConsultoraEmail } from "@/lib/auth/consultora";
+import { notifyPromoSubscribers } from "@/lib/crm/notify-promo-subscribers";
 import { revalidatePublicHome } from "@/lib/next/revalidate-public-home";
 import { isCanonicalLeadStatus } from "@/lib/crm/lead-board";
 import {
@@ -102,6 +103,13 @@ export async function saveSiteContentAction(
   return { ok: true };
 }
 
+function parseOptionalCoord(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  if (Number.isNaN(n)) return null;
+  return n;
+}
+
 const crmPostBase = z.object({
   tipo: z.enum(["promocao", "video", "inspiracao"]),
   titulo: z.string().min(1).max(500),
@@ -112,6 +120,16 @@ const crmPostBase = z.object({
   status: z.boolean(),
   data_publicacao: z.string().min(1).max(40),
   ordem_site: z.coerce.number().int().min(-999999).max(999999),
+  membros_apenas: z.boolean().optional().default(false),
+  slug_destino: z.string().max(200).optional().nullable(),
+  latitude: z.preprocess(
+    parseOptionalCoord,
+    z.union([z.number().min(-90).max(90), z.null()]).optional(),
+  ),
+  longitude: z.preprocess(
+    parseOptionalCoord,
+    z.union([z.number().min(-180).max(180), z.null()]).optional(),
+  ),
 });
 
 export type CrmPostInput = z.infer<typeof crmPostBase>;
@@ -129,6 +147,10 @@ export async function createCrmPostAction(
     return { ok: false, error: auth.error };
   }
 
+  const lat = row.data.latitude ?? null;
+  const lng = row.data.longitude ?? null;
+  const slug = row.data.slug_destino?.trim().toLowerCase() || null;
+
   const { error } = await auth.db.from("posts").insert({
     tipo: row.data.tipo,
     titulo: row.data.titulo,
@@ -139,14 +161,37 @@ export async function createCrmPostAction(
     status: row.data.status,
     data_publicacao: row.data.data_publicacao,
     ordem_site: row.data.ordem_site,
+    membros_apenas: row.data.membros_apenas,
+    slug_destino: slug,
+    latitude: lat,
+    longitude: lng,
   });
 
   if (error) {
     return { ok: false, error: error.message };
   }
 
+  const pubAt = new Date(row.data.data_publicacao);
+  const isLive = row.data.status && pubAt <= new Date();
+  if (row.data.tipo === "promocao" && isLive) {
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
+    try {
+      await notifyPromoSubscribers({
+        titulo: row.data.titulo,
+        siteOrigin: origin,
+      });
+    } catch (e) {
+      console.error("[crm] notify promo subscribers:", e);
+    }
+  }
+
   revalidatePublicHome();
   revalidatePath("/crm/publicacoes");
+  revalidatePath("/mapa");
   return { ok: true };
 }
 
@@ -173,6 +218,10 @@ export async function updateCrmPostAction(
     return { ok: false, error: auth.error };
   }
 
+  const lat = row.data.latitude ?? null;
+  const lng = row.data.longitude ?? null;
+  const slug = row.data.slug_destino?.trim().toLowerCase() || null;
+
   const { error } = await auth.db
     .from("posts")
     .update({
@@ -185,6 +234,10 @@ export async function updateCrmPostAction(
       status: row.data.status,
       data_publicacao: row.data.data_publicacao,
       ordem_site: row.data.ordem_site,
+      membros_apenas: row.data.membros_apenas,
+      slug_destino: slug,
+      latitude: lat,
+      longitude: lng,
     })
     .eq("id", id);
 
@@ -194,6 +247,7 @@ export async function updateCrmPostAction(
 
   revalidatePublicHome();
   revalidatePath("/crm/publicacoes");
+  revalidatePath("/mapa");
   return { ok: true };
 }
 
@@ -222,5 +276,6 @@ export async function deleteCrmPostAction(
 
   revalidatePublicHome();
   revalidatePath("/crm/publicacoes");
+  revalidatePath("/mapa");
   return { ok: true };
 }

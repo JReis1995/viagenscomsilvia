@@ -58,6 +58,23 @@ const siteContentSchema = z.object({
       portraitUrl: line,
     })
     .strict(),
+  registerIncentive: z
+    .object({
+      headline: line,
+      bullet1: line,
+      bullet2: line,
+      bullet3: line,
+    })
+    .strict(),
+  socialFeed: z
+    .object({
+      eyebrow: line,
+      title: line,
+      subtitle: line,
+      postUrls: z.string().max(12000),
+      embedHtml: z.string().max(80000),
+    })
+    .strict(),
 });
 
 export type SiteContent = z.infer<typeof siteContentSchema>;
@@ -111,6 +128,20 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     linkVideo: "",
     ctaQuiz: "Quero a minha proposta",
     portraitUrl: "",
+  },
+  registerIncentive: {
+    headline: "Com a tua conta de cliente desbloqueias mais do site",
+    bullet1: "Roteiros e conteúdos exclusivos para quem se regista",
+    bullet2: "Wishlist para guardares destinos e inspirações",
+    bullet3: "Alertas opcionais quando há novas promoções no site",
+  },
+  socialFeed: {
+    eyebrow: "Instagram",
+    title: "Últimas partilhas",
+    subtitle:
+      "Cola abaixo os links dos teus posts ou reels (um por linha), ou o código embed oficial do Instagram. O site fica sempre com cara actualizada.",
+    postUrls: "",
+    embedHtml: "",
   },
 };
 
@@ -191,6 +222,39 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
       base.consultora,
       p.consultora as Record<string, unknown>,
     ) as SiteContent["consultora"],
+    registerIncentive: mergeSection(
+      base.registerIncentive,
+      p.registerIncentive as Record<string, unknown>,
+    ) as SiteContent["registerIncentive"],
+    socialFeed: (() => {
+      const sf =
+        typeof p.socialFeed === "object" && p.socialFeed !== null
+          ? (p.socialFeed as Record<string, unknown>)
+          : {};
+      const head = mergeSection(
+        {
+          eyebrow: base.socialFeed.eyebrow,
+          title: base.socialFeed.title,
+          subtitle: base.socialFeed.subtitle,
+        },
+        {
+          eyebrow: sf.eyebrow as string | undefined,
+          title: sf.title as string | undefined,
+          subtitle: sf.subtitle as string | undefined,
+        },
+      );
+      return {
+        eyebrow: head.eyebrow,
+        title: head.title,
+        subtitle: head.subtitle,
+        postUrls:
+          typeof sf.postUrls === "string" ? sf.postUrls : base.socialFeed.postUrls,
+        embedHtml:
+          typeof sf.embedHtml === "string"
+            ? sf.embedHtml
+            : base.socialFeed.embedHtml,
+      };
+    })(),
   };
   return replaceLegacyQuizWording(merged);
 }

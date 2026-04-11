@@ -94,6 +94,21 @@ export async function POST(
     valor_total: body.valor_total,
     notas: body.notas?.trim() ? body.notas.trim() : undefined,
     enviado_em: enviadoEm,
+    ...(body.data_inicio?.trim()
+      ? { data_inicio: body.data_inicio.trim() }
+      : {}),
+    ...(body.data_fim?.trim() ? { data_fim: body.data_fim.trim() } : {}),
+    ...(body.links_uteis?.length ? { links_uteis: body.links_uteis } : {}),
+    ...(body.galeria_urls?.length ? { galeria_urls: body.galeria_urls } : {}),
+    ...(body.slug_destino?.trim()
+      ? { slug_destino: body.slug_destino.trim().toLowerCase() }
+      : {}),
+    ...(body.latitude != null && !Number.isNaN(body.latitude)
+      ? { latitude: body.latitude }
+      : {}),
+    ...(body.longitude != null && !Number.isNaN(body.longitude)
+      ? { longitude: body.longitude }
+      : {}),
   };
 
   let pdfBuffer: Buffer;

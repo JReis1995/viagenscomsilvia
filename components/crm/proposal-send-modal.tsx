@@ -13,6 +13,25 @@ type Props = {
   onViewQuiz?: () => void;
 };
 
+function parsePipeLinks(raw: string): { label: string; url: string }[] {
+  const out: { label: string; url: string }[] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const idx = line.indexOf("|");
+    if (idx === -1) continue;
+    const label = line.slice(0, idx).trim();
+    const url = line.slice(idx + 1).trim();
+    if (label && url) out.push({ label, url });
+  }
+  return out;
+}
+
+function parseUrlLines(raw: string): string[] {
+  return raw
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function buildPayload(
   titulo: string,
   destino: string,
@@ -22,7 +41,20 @@ function buildPayload(
   notas: string,
   atualizarEstado: boolean,
   apenasPrevizualizar: boolean,
+  extras: {
+    dataInicio: string;
+    dataFim: string;
+    slugDestino: string;
+    lat: string;
+    lng: string;
+    linksRaw: string;
+    galeriaRaw: string;
+  },
 ) {
+  const links = parsePipeLinks(extras.linksRaw);
+  const galeria = parseUrlLines(extras.galeriaRaw);
+  const latN = extras.lat.trim() === "" ? null : Number(extras.lat);
+  const lngN = extras.lng.trim() === "" ? null : Number(extras.lng);
   return {
     titulo,
     destino,
@@ -32,6 +64,15 @@ function buildPayload(
     notas: notas.trim() || undefined,
     atualizar_estado: atualizarEstado,
     apenas_previzualizar: apenasPrevizualizar,
+    data_inicio: extras.dataInicio.trim() || null,
+    data_fim: extras.dataFim.trim() || null,
+    slug_destino: extras.slugDestino.trim() || null,
+    latitude:
+      latN !== null && !Number.isNaN(latN) ? latN : null,
+    longitude:
+      lngN !== null && !Number.isNaN(lngN) ? lngN : null,
+    links_uteis: links.length ? links : undefined,
+    galeria_urls: galeria.length ? galeria : undefined,
   };
 }
 
@@ -51,10 +92,35 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
   const [valorTotal, setValorTotal] = useState(prev?.valor_total ?? "");
   const [notas, setNotas] = useState(prev?.notas ?? "");
   const [atualizarEstado, setAtualizarEstado] = useState(true);
+  const [dataInicio, setDataInicio] = useState(prev?.data_inicio ?? "");
+  const [dataFim, setDataFim] = useState(prev?.data_fim ?? "");
+  const [slugDestino, setSlugDestino] = useState(prev?.slug_destino ?? "");
+  const [lat, setLat] = useState(
+    prev?.latitude != null ? String(prev.latitude) : "",
+  );
+  const [lng, setLng] = useState(
+    prev?.longitude != null ? String(prev.longitude) : "",
+  );
+  const [linksRaw, setLinksRaw] = useState(
+    prev?.links_uteis?.map((l) => `${l.label} | ${l.url}`).join("\n") ?? "",
+  );
+  const [galeriaRaw, setGaleriaRaw] = useState(
+    prev?.galeria_urls?.join("\n") ?? "",
+  );
   const [sending, setSending] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const extras = {
+    dataInicio,
+    dataFim,
+    slugDestino,
+    lat,
+    lng,
+    linksRaw,
+    galeriaRaw,
+  };
 
   const revokePreview = () => {
     if (previewObjectUrlRef.current) {
@@ -103,6 +169,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
             notas,
             atualizarEstado,
             true,
+            extras,
           ),
         ),
       });
@@ -156,6 +223,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
             notas,
             atualizarEstado,
             false,
+            extras,
           ),
         ),
       });
@@ -352,6 +420,111 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
                   <strong>Proposta enviada</strong>
                 </span>
               </label>
+
+              <div className="rounded-xl border border-dashed border-ocean-200 bg-white/60 px-3 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-ocean-500">
+                  Itinerário digital (área do cliente)
+                </p>
+                <p className="mt-1 text-[11px] text-ocean-500">
+                  Opcional. Aparece na página interativa do pedido (contador,
+                  meteo, conteúdos ligados).
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs">
+                    <span className="text-ocean-600">Início da viagem</span>
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                      value={dataInicio}
+                      onChange={(e) => {
+                        setDataInicio(e.target.value);
+                        invalidatePreview();
+                      }}
+                    />
+                  </label>
+                  <label className="block text-xs">
+                    <span className="text-ocean-600">Fim da viagem</span>
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                      value={dataFim}
+                      onChange={(e) => {
+                        setDataFim(e.target.value);
+                        invalidatePreview();
+                      }}
+                    />
+                  </label>
+                </div>
+                <label className="mt-3 block text-xs">
+                  <span className="text-ocean-600">
+                    Slug destino (cruzar com publicações)
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                    value={slugDestino}
+                    onChange={(e) => {
+                      setSlugDestino(e.target.value);
+                      invalidatePreview();
+                    }}
+                    placeholder="ex.: maldivas"
+                  />
+                </label>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs">
+                    <span className="text-ocean-600">Latitude</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                      value={lat}
+                      onChange={(e) => {
+                        setLat(e.target.value);
+                        invalidatePreview();
+                      }}
+                      placeholder="ex.: 3.2028"
+                    />
+                  </label>
+                  <label className="block text-xs">
+                    <span className="text-ocean-600">Longitude</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                      value={lng}
+                      onChange={(e) => {
+                        setLng(e.target.value);
+                        invalidatePreview();
+                      }}
+                      placeholder="ex.: 73.2207"
+                    />
+                  </label>
+                </div>
+                <label className="mt-3 block text-xs">
+                  <span className="text-ocean-600">
+                    Links úteis (uma linha: Rótulo | URL)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-[64px] w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                    value={linksRaw}
+                    onChange={(e) => {
+                      setLinksRaw(e.target.value);
+                      invalidatePreview();
+                    }}
+                    placeholder="Check-in do hotel | https://…"
+                    rows={2}
+                  />
+                </label>
+                <label className="mt-3 block text-xs">
+                  <span className="text-ocean-600">
+                    Galeria (URLs de imagens, uma por linha)
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-[64px] w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
+                    value={galeriaRaw}
+                    onChange={(e) => {
+                      setGaleriaRaw(e.target.value);
+                      invalidatePreview();
+                    }}
+                    rows={2}
+                  />
+                </label>
+              </div>
             </div>
           </div>
 

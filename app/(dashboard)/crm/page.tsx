@@ -76,6 +76,24 @@ export default async function CrmHomePage() {
     }
   }
 
+  let clientDecisions: {
+    lead_id: string;
+    decision: string;
+    note: string | null;
+    created_at: string;
+  }[] = [];
+  if (sr.ok) {
+    const res = await sr.client
+      .from("lead_client_decisions")
+      .select("lead_id, decision, note, created_at")
+      .order("created_at", { ascending: true });
+    if (res.error) {
+      console.error("[crm] lead_client_decisions:", res.error.message);
+    } else {
+      clientDecisions = res.data ?? [];
+    }
+  }
+
   const clientThreadsByLeadId: Record<
     string,
     { message: string; created_at: string }[]
@@ -86,6 +104,20 @@ export default async function CrmHomePage() {
     if (!clientThreadsByLeadId[k]) clientThreadsByLeadId[k] = [];
     clientThreadsByLeadId[k].push({
       message: row.message,
+      created_at: row.created_at,
+    });
+  }
+
+  const clientDecisionsByLeadId: Record<
+    string,
+    { decision: string; note: string | null; created_at: string }[]
+  > = {};
+  for (const row of clientDecisions) {
+    const k = row.lead_id;
+    if (!clientDecisionsByLeadId[k]) clientDecisionsByLeadId[k] = [];
+    clientDecisionsByLeadId[k].push({
+      decision: row.decision,
+      note: row.note,
       created_at: row.created_at,
     });
   }
@@ -114,6 +146,7 @@ export default async function CrmHomePage() {
         <LeadsKanban
           initialLeads={leads}
           clientThreadsByLeadId={clientThreadsByLeadId}
+          clientDecisionsByLeadId={clientDecisionsByLeadId}
         />
       )}
     </div>

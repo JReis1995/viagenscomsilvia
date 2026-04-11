@@ -281,6 +281,15 @@ export async function buildPropostaPdfBuffer(
 
   drawSection("Destino", p.destino);
   drawSection("Datas / período", p.datas);
+  if (p.data_inicio?.trim() || p.data_fim?.trim()) {
+    const di = p.data_inicio?.trim() ?? "";
+    const df = p.data_fim?.trim() ?? "";
+    const line =
+      di && df
+        ? `${di} → ${df}`
+        : di || df || "—";
+    drawSection("Datas da viagem (referência digital)", line);
+  }
   drawBulletList("O que inclui", p.inclui);
   drawSection("Investimento", p.valor_total, 14);
 
