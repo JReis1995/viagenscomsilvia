@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { resolvePostLoginRedirect } from "@/lib/auth/post-login";
+import { fetchPostLoginPath } from "@/lib/auth/fetch-post-login-path";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -46,10 +46,7 @@ export function LoginForm() {
       return;
     }
 
-    const path = await resolvePostLoginRedirect(
-      session.user.email,
-      nextParam,
-    );
+    const path = await fetchPostLoginPath(nextParam, session.user.email);
 
     // Não usar router.refresh() aqui: o proxy redirecciona quem já tem sessão
     // em /login; refresh + replace competem e o App Router pode ficar preso até
