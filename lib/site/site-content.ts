@@ -152,9 +152,14 @@ function mergeSection(
   const out: Record<string, string> = { ...defaults };
   if (!db || typeof db !== "object") return out;
   for (const key of Object.keys(defaults)) {
+    if (!Object.prototype.hasOwnProperty.call(db, key)) {
+      continue;
+    }
     const v = db[key];
-    if (typeof v === "string" && v.trim() !== "") {
+    if (typeof v === "string") {
       out[key] = v;
+    } else if (v === null) {
+      out[key] = "";
     }
   }
   return out;
@@ -203,7 +208,10 @@ function replaceLegacyQuizWording(site: SiteContent): SiteContent {
   return { ...site, hero, consultora, quiz, feed };
 }
 
-/** Junta payload guardado na BD com os textos por omissão (campos vazios na BD usam default). */
+/**
+ * Junta payload da BD com os defaults. Chaves **em falta** no JSON usam o texto por omissão;
+ * chave presente com `""` ou só espaços mantém-se (campo limpo de propósito no CRM).
+ */
 export function mergeSiteContentFromDb(payload: unknown): SiteContent {
   const base = DEFAULT_SITE_CONTENT;
   if (!payload || typeof payload !== "object") {

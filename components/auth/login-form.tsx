@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { resolvePostLoginRedirect } from "@/lib/auth/post-login";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
 
@@ -16,15 +15,19 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    const fd = new FormData(e.currentTarget);
+    const emailRaw = String(fd.get("email") ?? "").trim();
+    const passwordRaw = String(fd.get("password") ?? "");
+
     const supabase = createClient();
     const { error: signError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: emailRaw,
+      password: passwordRaw,
     });
 
     if (signError) {
@@ -34,20 +37,25 @@ export function LoginForm() {
     }
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!user?.email) {
+    if (!session?.user?.email) {
       setLoading(false);
       setError("Não foi possível ler a sessão. Tenta de novo.");
       return;
     }
 
-    const path = await resolvePostLoginRedirect(user.email, nextParam);
+    const path = await resolvePostLoginRedirect(
+      session.user.email,
+      nextParam,
+    );
 
-    setLoading(false);
-    router.refresh();
-    router.replace(path);
+    // Não usar router.refresh() aqui: o proxy redirecciona quem já tem sessão
+    // em /login; refresh + replace competem e o App Router pode ficar preso até
+    // haver foco noutra janela/separador. Navegação completa aplica cookies e
+    // evita esse estado intermédio.
+    window.location.assign(path);
   }
 
   return (
