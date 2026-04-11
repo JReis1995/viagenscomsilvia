@@ -194,7 +194,7 @@ export function LeadsKanban({
         </div>
       ) : null}
 
-      <div className="flex gap-4 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5">
+      <div className="flex touch-pan-x snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5">
         {LEAD_BOARD_COLUMNS.map((col) => {
           const list = grouped.get(col.status) ?? [];
           const isOver =
@@ -204,7 +204,7 @@ export function LeadsKanban({
           return (
             <div
               key={col.status}
-              className="flex w-[min(100%,320px)] shrink-0 flex-col rounded-2xl border border-ocean-100/90 bg-ocean-50/40"
+              className="flex w-[min(100%,320px)] shrink-0 snap-start flex-col rounded-2xl border border-ocean-100/90 bg-ocean-50/40"
               data-column-status={col.status}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -343,7 +343,7 @@ export function LeadsKanban({
 
         {outrosCount > 0 ? (
           <div
-            className="flex w-[min(100%,320px)] shrink-0 flex-col rounded-2xl border border-dashed border-ocean-200 bg-white/50"
+            className="flex w-[min(100%,320px)] shrink-0 snap-start flex-col rounded-2xl border border-dashed border-ocean-200 bg-white/50"
             data-column-status={OUTROS_COLUMN_KEY}
             onDragOver={(e) => {
               e.preventDefault();

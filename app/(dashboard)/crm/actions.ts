@@ -130,6 +130,8 @@ const crmPostBase = z.object({
     parseOptionalCoord,
     z.union([z.number().min(-180).max(180), z.null()]).optional(),
   ),
+  feed_vibe_slugs: z.array(z.string().max(48)).max(12).optional().default([]),
+  hover_line: z.string().max(400).optional().nullable(),
 });
 
 export type CrmPostInput = z.infer<typeof crmPostBase>;
@@ -165,6 +167,8 @@ export async function createCrmPostAction(
     slug_destino: slug,
     latitude: lat,
     longitude: lng,
+    feed_vibe_slugs: row.data.feed_vibe_slugs ?? [],
+    hover_line: row.data.hover_line?.trim() || null,
   });
 
   if (error) {
@@ -238,6 +242,8 @@ export async function updateCrmPostAction(
       slug_destino: slug,
       latitude: lat,
       longitude: lng,
+      feed_vibe_slugs: row.data.feed_vibe_slugs ?? [],
+      hover_line: row.data.hover_line?.trim() || null,
     })
     .eq("id", id);
 

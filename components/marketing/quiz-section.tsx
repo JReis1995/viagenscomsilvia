@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { ScrollToPedidoAnchor } from "@/components/marketing/scroll-to-pedido-anchor";
 import { TravelQuiz } from "@/components/marketing/travel-quiz";
 import type { PedidoOrcamentoPrefill } from "@/lib/marketing/pedido-orcamento";
 import type { SiteContent } from "@/lib/site/site-content";
@@ -12,6 +15,7 @@ type Props = {
 export function QuizSection({ copy, prefill = null, quizKey = "default" }: Props) {
   return (
     <div className="border-t border-ocean-100/60 bg-gradient-to-b from-sand via-ocean-50/20 to-sand">
+      <ScrollToPedidoAnchor />
       {/* #quiz mantém links antigos; #pedido-orcamento é o destino preferido */}
       <div id="quiz" className="h-px scroll-mt-24 overflow-hidden opacity-0" aria-hidden />
       <section
@@ -33,7 +37,16 @@ export function QuizSection({ copy, prefill = null, quizKey = "default" }: Props
           {copy.body}
         </p>
         <div className="mt-14">
-          <TravelQuiz key={quizKey} prefill={prefill} />
+          <Suspense
+            fallback={
+              <div
+                className="min-h-[280px] rounded-3xl border border-ocean-100 bg-white/80"
+                aria-hidden
+              />
+            }
+          >
+            <TravelQuiz key={quizKey} prefill={prefill} quizCopy={copy} />
+          </Suspense>
         </div>
       </div>
       </section>

@@ -7,6 +7,14 @@ export const VIBE_OPTIONS = [
   { value: "Ainda estou a explorar ideias", label: "Ainda estou a explorar" },
 ] as const;
 
+export type QuizVibeValue = (typeof VIBE_OPTIONS)[number]["value"];
+
+const VIBE_VALUE_SET = new Set<string>(VIBE_OPTIONS.map((o) => o.value));
+
+export function isAllowedQuizVibe(v: string): v is QuizVibeValue {
+  return VIBE_VALUE_SET.has(v);
+}
+
 export const COMPANHIA_OPTIONS = [
   { value: "Sozinho/a", label: "Sozinho/a" },
   { value: "Casal", label: "Casal" },

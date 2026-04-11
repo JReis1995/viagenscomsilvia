@@ -1,3 +1,4 @@
+import { normalizeVibeSlugs } from "@/lib/posts/fetch-published";
 import { createClient } from "@/lib/supabase/server";
 import type { PostTipo, PublishedPost } from "@/types/post";
 
@@ -11,7 +12,7 @@ export async function fetchMemberSecretPosts(): Promise<PublishedPost[]> {
   const { data, error } = await supabase
     .from("posts")
     .select(
-      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, data_publicacao, ordem_site, membros_apenas",
+      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, data_publicacao, ordem_site, membros_apenas, feed_vibe_slugs, hover_line",
     )
     .eq("membros_apenas", true)
     .eq("status", true)
@@ -44,5 +45,10 @@ export async function fetchMemberSecretPosts(): Promise<PublishedPost[]> {
         typeof row.ordem_site === "number" && !Number.isNaN(row.ordem_site)
           ? row.ordem_site
           : 0,
+      feed_vibe_slugs: normalizeVibeSlugs(row.feed_vibe_slugs),
+      hover_line:
+        typeof row.hover_line === "string" && row.hover_line.trim()
+          ? row.hover_line.trim()
+          : null,
     }));
 }

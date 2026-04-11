@@ -248,7 +248,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/40 p-3 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/40 p-0 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="proposal-modal-title"
@@ -259,7 +259,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[min(92vh,880px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-ocean-100 bg-white shadow-xl">
+      <div className="relative z-10 flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border border-ocean-100 border-b-0 bg-white shadow-xl sm:max-h-[min(92vh,880px)] sm:rounded-2xl sm:border-b">
         <div className="shrink-0 border-b border-ocean-100 px-5 py-4 md:px-6">
           <h2
             id="proposal-modal-title"
@@ -293,10 +293,10 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
         </div>
 
         <form
-          className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))] md:flex-row md:overflow-hidden md:pb-0"
           onSubmit={(e) => void handleSubmit(e)}
         >
-          <div className="min-h-0 w-full shrink-0 overflow-y-auto border-ocean-100 p-5 md:w-[min(100%,380px)] md:border-r md:p-6">
+          <div className="w-full shrink-0 p-5 md:min-h-0 md:w-[min(100%,380px)] md:shrink-0 md:overflow-y-auto md:border-r md:border-ocean-100 md:p-6">
             {error ? (
               <p
                 className="mb-4 rounded-xl border border-terracotta/40 bg-terracotta/10 px-3 py-2 text-sm text-ocean-900"
@@ -528,7 +528,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
             </div>
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-sand/40 p-4 md:p-5">
+          <div className="flex min-h-[min(52vh,420px)] min-w-0 flex-1 flex-col border-t border-ocean-100 bg-sand/40 p-4 md:min-h-0 md:border-t-0 md:p-5">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pb-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-ocean-600">
                 Pré-visualização do PDF
@@ -543,15 +543,28 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
               </button>
             </div>
 
-            <div className="relative min-h-[280px] flex-1 overflow-hidden rounded-xl border border-ocean-200 bg-ocean-900/5 md:min-h-[420px]">
+            {previewUrl ? (
+              <p className="mb-2 md:hidden">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-ocean-700 underline decoration-ocean-300 underline-offset-2 hover:text-ocean-900"
+                >
+                  Abrir PDF no browser (recomendado no telemóvel)
+                </a>
+              </p>
+            ) : null}
+
+            <div className="relative min-h-[min(40vh,320px)] flex-1 overflow-hidden rounded-xl border border-ocean-200 bg-ocean-900/5 md:min-h-[420px]">
               {previewUrl ? (
                 <iframe
                   title="Pré-visualização do PDF"
                   src={previewUrl}
-                  className="h-full min-h-[280px] w-full md:min-h-[420px]"
+                  className="h-full min-h-[min(40vh,320px)] w-full md:min-h-[420px]"
                 />
               ) : (
-                <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 px-6 text-center md:min-h-[420px]">
+                <div className="flex h-full min-h-[min(40vh,320px)] flex-col items-center justify-center gap-2 px-6 text-center md:min-h-[420px]">
                   <p className="text-sm text-ocean-600">
                     Clica em{" "}
                     <strong className="text-ocean-800">
@@ -567,7 +580,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
               )}
             </div>
 
-            <div className="flex shrink-0 flex-wrap gap-3 pt-4">
+            <div className="flex shrink-0 flex-wrap gap-3 pt-4 pb-1 sm:pb-0">
               <button
                 type="button"
                 onClick={onClose}

@@ -36,7 +36,7 @@ export default async function MarketingLayout({
 
   return (
     <div className="flex min-h-full flex-col bg-sand text-ocean-900">
-      <header className="border-b border-ocean-100/80 bg-sand/90 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-ocean-100/80 bg-sand/95 shadow-[0_1px_0_rgba(15,61,57,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-sand/85">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5">
           <Link
             href="/"

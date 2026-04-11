@@ -1,3 +1,8 @@
+import { isAllowedQuizVibe } from "@/components/marketing/quiz-options";
+import {
+  isQuizClimaKey,
+  type QuizClimaKey,
+} from "@/lib/marketing/quiz-clima";
 import type { PublishedPost } from "@/types/post";
 
 /** Limite do campo `destino_sonho` no formulário / API. */
@@ -25,6 +30,10 @@ export type PedidoOrcamentoPrefill = {
   /** Título ou primeira linha (para mensagem de boas-vindas no passo 0). */
   temaDestaque?: string;
   postId?: string;
+  /** Valor exacto de uma opção do quiz (query `pedido_vibe`). */
+  vibe?: string;
+  /** Clima escolhido no hero ou via `pedido_clima`. */
+  clima?: QuizClimaKey;
 };
 
 /**
@@ -54,7 +63,12 @@ export function parsePedidoPrefillFromSearchParams(
   const destino = firstParam(sp.pedido_destino);
   const contexto = firstParam(sp.pedido_contexto);
   const postId = firstParam(sp.pedido_post);
-  if (!destino && !contexto && !postId) return null;
+  const rawVibe = firstParam(sp.pedido_vibe);
+  const vibe =
+    rawVibe && isAllowedQuizVibe(rawVibe) ? rawVibe : undefined;
+  const rawClima = firstParam(sp.pedido_clima);
+  const clima =
+    rawClima && isQuizClimaKey(rawClima) ? rawClima : undefined;
 
   const lines: string[] = [];
   if (destino) lines.push(destino);
@@ -63,10 +77,15 @@ export function parsePedidoPrefillFromSearchParams(
   if (destinoSonho.length > FORM_DESTINO_MAX) {
     destinoSonho = clip(destinoSonho, FORM_DESTINO_MAX);
   }
-  if (!destinoSonho.trim()) return null;
+
+  const hasDestinoOrPost = !!(destinoSonho.trim() || postId);
+  if (!hasDestinoOrPost && !vibe && !clima) return null;
+
   return {
-    destinoSonho,
+    destinoSonho: destinoSonho.trim(),
     temaDestaque: destino,
     postId,
+    vibe,
+    clima,
   };
 }

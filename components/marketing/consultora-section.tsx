@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
+import { AlmaTestimonialsSlider } from "@/components/marketing/alma-testimonials-slider";
 import type { SiteContent } from "@/lib/site/site-content";
 import {
   getConsultoraPortraitUrl,
@@ -27,9 +28,10 @@ function PortraitFallback() {
 
 type Props = {
   copy: SiteContent["consultora"];
+  alma: SiteContent["almaTestimonials"];
 };
 
-export function ConsultoraSection({ copy }: Props) {
+export function ConsultoraSection({ copy, alma }: Props) {
   const reduceMotion = useReducedMotion();
   const portraitUrl =
     copy.portraitUrl.trim() !== ""
@@ -53,7 +55,8 @@ export function ConsultoraSection({ copy }: Props) {
       className="border-t border-ocean-100/70 bg-sand px-5 py-20 sm:px-6 md:py-28"
       aria-labelledby="consultora-heading"
     >
-      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-16">
+      <div className="mx-auto max-w-6xl space-y-12 lg:space-y-16">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-16">
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, x: -12 }}
           whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }}
@@ -142,6 +145,12 @@ export function ConsultoraSection({ copy }: Props) {
             aria-hidden
           />
         </motion.div>
+        </div>
+        <AlmaTestimonialsSlider
+          eyebrow={alma.eyebrow}
+          title={alma.title}
+          items={alma.items}
+        />
       </div>
     </section>
   );

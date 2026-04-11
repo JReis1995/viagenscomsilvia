@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { climaLabelForKey } from "@/lib/marketing/quiz-clima";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
 import type { LeadBoardRow } from "@/types/lead";
 
 type Props = {
@@ -40,7 +42,7 @@ export function LeadQuizDetailModal({ lead, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/40 p-3 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/40 p-0 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quiz-detail-title"
@@ -51,7 +53,7 @@ export function LeadQuizDetailModal({ lead, onClose }: Props) {
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[min(88vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-ocean-100 bg-white shadow-xl">
+      <div className="relative z-10 flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ocean-100 border-b-0 bg-white shadow-xl sm:max-h-[min(88vh,640px)] sm:rounded-2xl sm:border-b">
         <div className="shrink-0 border-b border-ocean-100 bg-sand/30 px-5 py-4">
           <h2
             id="quiz-detail-title"
@@ -82,7 +84,7 @@ export function LeadQuizDetailModal({ lead, onClose }: Props) {
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
             O que o cliente indicou
           </p>
@@ -110,6 +112,19 @@ export function LeadQuizDetailModal({ lead, onClose }: Props) {
               </dt>
               <dd className="mt-0.5 text-ocean-900">
                 {formatPedidoDate(lead.data_pedido)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+                Clima / ambiente
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
+                {lead.clima_preferido?.trim()
+                  ? climaLabelForKey(
+                      lead.clima_preferido.trim(),
+                      DEFAULT_SITE_CONTENT.quiz,
+                    )
+                  : "—"}
               </dd>
             </div>
             <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
@@ -155,7 +170,7 @@ export function LeadQuizDetailModal({ lead, onClose }: Props) {
           </dl>
         </div>
 
-        <div className="shrink-0 border-t border-ocean-100 bg-white px-5 py-3">
+        <div className="shrink-0 border-t border-ocean-100 bg-white px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
           <p className="mb-2 text-center text-[11px] text-ocean-500">
             Tecla <kbd className="rounded border border-ocean-200 bg-ocean-50 px-1.5 py-0.5 font-mono text-[10px] text-ocean-700">Esc</kbd>{" "}
             para fechar

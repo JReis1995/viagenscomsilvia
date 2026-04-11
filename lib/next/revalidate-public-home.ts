@@ -7,5 +7,6 @@ import { revalidatePath } from "next/cache";
  */
 export function revalidatePublicHome() {
   revalidatePath("/");
+  revalidatePath("/obrigado");
   revalidatePath("/(marketing)", "layout");
 }

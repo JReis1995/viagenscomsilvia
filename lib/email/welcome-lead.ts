@@ -1,4 +1,6 @@
 import { escapeHtml } from "@/lib/email/html";
+import { climaLabelForKey } from "@/lib/marketing/quiz-clima";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
 import type { LeadQuizInput } from "@/lib/validations/lead-quiz";
 
 export function buildWelcomeLeadEmail(data: LeadQuizInput): {
@@ -7,12 +9,17 @@ export function buildWelcomeLeadEmail(data: LeadQuizInput): {
   text: string;
 } {
   const subject = "Recebemos o teu pedido — Viagens com Sílvia";
+  const climaHuman = climaLabelForKey(
+    data.clima_preferido,
+    DEFAULT_SITE_CONTENT.quiz,
+  );
 
   const text = `Olá ${data.nome},
 
 Obrigado por partilhares a tua visão de viagem connosco.
 
 Resumo do que nos enviaste:
+- Clima / ambiente: ${climaHuman}
 - Telemóvel: ${data.telemovel}
 - Estilo: ${data.vibe}
 - Companhia: ${data.companhia}
@@ -32,6 +39,7 @@ Viagens com Sílvia`;
   <p>Obrigado por partilhares a tua visão de viagem connosco.</p>
   <p style="margin-top: 1.5rem;"><strong>Resumo do pedido</strong></p>
   <ul style="padding-left: 1.25rem; margin: 0.5rem 0;">
+    <li>Clima / ambiente: ${escapeHtml(climaHuman)}</li>
     <li>Telemóvel: ${escapeHtml(data.telemovel)}</li>
     <li>Estilo: ${escapeHtml(data.vibe)}</li>
     <li>Companhia: ${escapeHtml(data.companhia)}</li>

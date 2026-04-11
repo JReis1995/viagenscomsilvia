@@ -31,11 +31,29 @@ export type CrmPostRow = {
   slug_destino?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  feed_vibe_slugs?: string[] | null;
+  hover_line?: string | null;
 };
 
 type Props = {
   initialPosts: CrmPostRow[];
 };
+
+/** Estado do formulário: inclui CSV editável para slugs do filtro do feed. */
+type PostFormState = CrmPostInput & { vibe_slugs_csv: string };
+
+function parseFeedVibeSlugCsv(raw: string): string[] {
+  const out: string[] = [];
+  for (const part of raw.split(/[,;\n]+/)) {
+    const s = part
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+    if (s.length > 0 && !out.includes(s)) out.push(s);
+  }
+  return out.slice(0, 12);
+}
 
 function localNowForInput(): string {
   const d = new Date();
@@ -43,7 +61,7 @@ function localNowForInput(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function emptyForm(): CrmPostInput {
+function emptyForm(): PostFormState {
   return {
     tipo: "inspiracao",
     titulo: "",
@@ -58,6 +76,29 @@ function emptyForm(): CrmPostInput {
     slug_destino: "",
     latitude: null,
     longitude: null,
+    feed_vibe_slugs: [],
+    hover_line: "",
+    vibe_slugs_csv: "",
+  };
+}
+
+function toCrmPayload(form: PostFormState): CrmPostInput {
+  return {
+    tipo: form.tipo,
+    titulo: form.titulo,
+    descricao: form.descricao,
+    media_url: form.media_url,
+    preco_desde: form.preco_desde,
+    link_cta: form.link_cta,
+    status: form.status,
+    data_publicacao: form.data_publicacao,
+    ordem_site: form.ordem_site,
+    membros_apenas: form.membros_apenas,
+    slug_destino: form.slug_destino,
+    latitude: form.latitude,
+    longitude: form.longitude,
+    feed_vibe_slugs: parseFeedVibeSlugCsv(form.vibe_slugs_csv),
+    hover_line: form.hover_line?.trim() || null,
   };
 }
 
@@ -86,7 +127,7 @@ export function CrmPostsManager({ initialPosts }: Props) {
   const router = useRouter();
   const [posts, setPosts] = useState(initialPosts);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<CrmPostInput>(() => emptyForm());
+  const [form, setForm] = useState<PostFormState>(() => emptyForm());
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -110,6 +151,11 @@ export function CrmPostsManager({ initialPosts }: Props) {
       slug_destino: p.slug_destino ?? "",
       latitude: p.latitude ?? null,
       longitude: p.longitude ?? null,
+      feed_vibe_slugs: Array.isArray(p.feed_vibe_slugs) ? p.feed_vibe_slugs : [],
+      hover_line: p.hover_line ?? "",
+      vibe_slugs_csv: (Array.isArray(p.feed_vibe_slugs) ? p.feed_vibe_slugs : []).join(
+        ", ",
+      ),
     });
     setMessage(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -124,7 +170,7 @@ export function CrmPostsManager({ initialPosts }: Props) {
   function submit() {
     setMessage(null);
     const payload: CrmPostInput = {
-      ...form,
+      ...toCrmPayload(form),
       data_publicacao: new Date(form.data_publicacao).toISOString(),
     };
 
@@ -148,6 +194,8 @@ export function CrmPostsManager({ initialPosts }: Props) {
                       slug_destino: payload.slug_destino || null,
                       latitude: payload.latitude ?? null,
                       longitude: payload.longitude ?? null,
+                      feed_vibe_slugs: payload.feed_vibe_slugs,
+                      hover_line: payload.hover_line || null,
                     }
                   : p,
               ),
@@ -424,6 +472,36 @@ export function CrmPostsManager({ initialPosts }: Props) {
                   sugeridos no campo do destino. Podes também colar um link
                   externo (hotel, página de destino, etc.).
                 </p>
+              </label>
+              <label className="mt-3 block text-sm">
+                <span className="text-ocean-700">Filtro por vibe (slugs)</span>
+                <span className="mt-0.5 block text-xs text-ocean-500">
+                  Os mesmos slugs definidos no editor do site (secção do feed),
+                  separados por vírgula — ex.: romance, retiro, adrenalina
+                </span>
+                <input
+                  className={inputCls}
+                  value={form.vibe_slugs_csv}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, vibe_slugs_csv: e.target.value }))
+                  }
+                  placeholder="romance, retiro"
+                />
+              </label>
+              <label className="mt-3 block text-sm">
+                <span className="text-ocean-700">Frase no hover (opcional)</span>
+                <span className="mt-0.5 block text-xs text-ocean-500">
+                  Uma linha poética que aparece quando o rato está sobre a
+                  imagem no site
+                </span>
+                <textarea
+                  className={`${inputCls} min-h-[72px]`}
+                  value={form.hover_line ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, hover_line: e.target.value }))
+                  }
+                  placeholder="Ex.: Acorda com o som do Índico na tua varanda…"
+                />
               </label>
             </div>
 

@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ConsultoraSection } from "@/components/marketing/consultora-section";
 import { ExperienceFeed } from "@/components/marketing/experience-feed";
 import { InstagramSocialSection } from "@/components/marketing/instagram-social-section";
@@ -21,6 +23,8 @@ export default async function HomePage({ searchParams }: Props) {
   const quizKey = [
     prefill?.postId ?? "",
     prefill?.destinoSonho ?? "",
+    prefill?.vibe ?? "",
+    prefill?.clima ?? "",
   ].join("|");
 
   const [posts, site] = await Promise.all([
@@ -54,7 +58,16 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <>
-      <LuxuryHero copy={site.hero} />
+      <Suspense
+        fallback={
+          <div
+            className="min-h-[min(92svh,900px)] bg-gradient-to-br from-ocean-950 via-ocean-900 to-ocean-950"
+            aria-hidden
+          />
+        }
+      >
+        <LuxuryHero copy={site.hero} quizCopy={site.quiz} />
+      </Suspense>
       <ExperienceFeed
         posts={posts}
         feed={site.feed}
@@ -63,7 +76,7 @@ export default async function HomePage({ searchParams }: Props) {
         wishlistedPostIds={wishlistedPostIds}
       />
       <InstagramSocialSection copy={site.socialFeed} />
-      <ConsultoraSection copy={site.consultora} />
+      <ConsultoraSection copy={site.consultora} alma={site.almaTestimonials} />
       <QuizSection copy={site.quiz} prefill={prefill} quizKey={quizKey} />
     </>
   );

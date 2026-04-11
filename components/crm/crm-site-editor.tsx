@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { saveSiteContentAction } from "@/app/(dashboard)/crm/actions";
+import { VIBE_OPTIONS } from "@/components/marketing/quiz-options";
 import type { SiteContent } from "@/lib/site/site-content";
 import { SITE_PREVIEW_STORAGE_KEY } from "@/lib/site/site-preview-storage";
 
@@ -10,7 +11,15 @@ type Props = {
   initial: SiteContent;
 };
 
-type TabId = "hero" | "feed" | "video" | "quiz" | "consultora" | "registo" | "social";
+type TabId =
+  | "hero"
+  | "feed"
+  | "video"
+  | "quiz"
+  | "consultora"
+  | "alma"
+  | "registo"
+  | "social";
 
 const TABS: {
   id: TabId;
@@ -41,6 +50,11 @@ const TABS: {
     id: "consultora",
     label: "A tua consultora",
     sub: "Texto e fotos desta secção",
+  },
+  {
+    id: "alma",
+    label: "Viagens com alma",
+    sub: "Depoimentos (slider polaroid)",
   },
   {
     id: "registo",
@@ -96,6 +110,43 @@ function Field({
   );
 }
 
+function VibeSelect({
+  label,
+  help,
+  value,
+  onChange,
+}: {
+  label: string;
+  help?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const base =
+    "mt-1 w-full rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm text-ocean-900 shadow-sm focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-200";
+  return (
+    <label className="block text-sm">
+      <span className="font-medium text-ocean-800">{label}</span>
+      {help ? (
+        <span className="mt-0.5 block text-xs font-normal text-ocean-500">
+          {help}
+        </span>
+      ) : null}
+      <select
+        className={base}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">— Nenhum —</option>
+        {VIBE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function CrmSiteEditor({ initial }: Props) {
   const [data, setData] = useState<SiteContent>(initial);
   const [tab, setTab] = useState<TabId>("hero");
@@ -111,6 +162,78 @@ export function CrmSiteEditor({ initial }: Props) {
       ...d,
       [section]: { ...d[section], [field]: value },
     }));
+  }
+
+  function patchQuizSuccess(
+    field: keyof SiteContent["quizSuccess"],
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      quizSuccess: { ...d.quizSuccess, [field]: value },
+    }));
+  }
+
+  function patchAlma(field: "eyebrow" | "title", value: string) {
+    setData((d) => ({
+      ...d,
+      almaTestimonials: { ...d.almaTestimonials, [field]: value },
+    }));
+  }
+
+  function patchAlmaItem(
+    index: number,
+    field: "imageUrl" | "quote" | "attribution",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      almaTestimonials: {
+        ...d.almaTestimonials,
+        items: d.almaTestimonials.items.map((it, i) =>
+          i === index ? { ...it, [field]: value } : it,
+        ),
+      },
+    }));
+  }
+
+  function addAlmaItem() {
+    setData((d) => ({
+      ...d,
+      almaTestimonials: {
+        ...d.almaTestimonials,
+        items: [
+          ...d.almaTestimonials.items,
+          { imageUrl: "", quote: "", attribution: "" },
+        ].slice(0, 12),
+      },
+    }));
+  }
+
+  function removeAlmaItem(index: number) {
+    setData((d) => ({
+      ...d,
+      almaTestimonials: {
+        ...d.almaTestimonials,
+        items: d.almaTestimonials.items.filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function moveAlmaItem(index: number, dir: -1 | 1) {
+    setData((d) => {
+      const arr = [...d.almaTestimonials.items];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return d;
+      const a = arr[index]!;
+      const b = arr[j]!;
+      arr[index] = b;
+      arr[j] = a;
+      return {
+        ...d,
+        almaTestimonials: { ...d.almaTestimonials, items: arr },
+      };
+    });
   }
 
   function submit() {
@@ -270,10 +393,68 @@ export function CrmSiteEditor({ initial }: Props) {
             />
             <Field
               label="URL da imagem de fundo (opcional)"
-              help="Deixa vazio para usar a imagem por omissão"
+              help="Deixa vazio para usar a imagem por omissão. Usada como fallback sem vídeo ou com «reduzir movimento»."
               value={data.hero.heroImageUrl}
               onChange={(v) => patch("hero", "heroImageUrl", v)}
             />
+            <Field
+              label="URL do vídeo de fundo (opcional)"
+              help="MP4/WebM directo (ex. Supabase Storage). Sem som; em loop. Vazio = só imagem."
+              value={data.hero.heroVideoUrl}
+              onChange={(v) => patch("hero", "heroVideoUrl", v)}
+            />
+            <Field
+              label="Poster do vídeo (imagem, opcional)"
+              help="Mostrada até o vídeo carregar e como capa em dispositivos lentos"
+              value={data.hero.heroVideoPosterUrl}
+              onChange={(v) => patch("hero", "heroVideoPosterUrl", v)}
+            />
+            <p className="text-sm font-medium text-ocean-800">
+              Pergunta interativa (opcional)
+            </p>
+            <p className="text-xs text-ocean-500">
+              Se preencheres a pergunta e pelo menos um botão com texto + estilo
+              válido, aparecem chips no topo do hero. Cada botão abre o pedido de
+              proposta com esse estilo já escolhido.
+            </p>
+            <Field
+              label="Pergunta"
+              help='Ex.: «O que o teu corpo pede agora?»'
+              value={data.hero.promptQuestion}
+              onChange={(v) => patch("hero", "promptQuestion", v)}
+            />
+            <div className="grid gap-4 rounded-xl border border-ocean-100/80 bg-ocean-50/40 p-4 sm:grid-cols-2">
+              <Field
+                label="Botão 1 — texto"
+                value={data.hero.promptBtn1Label}
+                onChange={(v) => patch("hero", "promptBtn1Label", v)}
+              />
+              <VibeSelect
+                label="Botão 1 — estilo de viagem (valor do quiz)"
+                value={data.hero.promptBtn1Vibe}
+                onChange={(v) => patch("hero", "promptBtn1Vibe", v)}
+              />
+              <Field
+                label="Botão 2 — texto"
+                value={data.hero.promptBtn2Label}
+                onChange={(v) => patch("hero", "promptBtn2Label", v)}
+              />
+              <VibeSelect
+                label="Botão 2 — estilo de viagem"
+                value={data.hero.promptBtn2Vibe}
+                onChange={(v) => patch("hero", "promptBtn2Vibe", v)}
+              />
+              <Field
+                label="Botão 3 — texto"
+                value={data.hero.promptBtn3Label}
+                onChange={(v) => patch("hero", "promptBtn3Label", v)}
+              />
+              <VibeSelect
+                label="Botão 3 — estilo de viagem"
+                value={data.hero.promptBtn3Vibe}
+                onChange={(v) => patch("hero", "promptBtn3Vibe", v)}
+              />
+            </div>
           </fieldset>
         ) : null}
 
@@ -296,6 +477,52 @@ export function CrmSiteEditor({ initial }: Props) {
               label="Texto de apoio"
               value={data.feed.subtitle}
               onChange={(v) => patch("feed", "subtitle", v)}
+              multiline
+            />
+            <p className="text-sm font-medium text-ocean-800">
+              Filtros por vibe (opcional)
+            </p>
+            <Field
+              label="Texto do chip «tudo»"
+              value={data.feed.filterAllLabel}
+              onChange={(v) => patch("feed", "filterAllLabel", v)}
+            />
+            <Field
+              label="Chip 1 — rótulo"
+              value={data.feed.filterChip1Label}
+              onChange={(v) => patch("feed", "filterChip1Label", v)}
+            />
+            <Field
+              label="Chip 1 — slug"
+              help="Minúsculas, sem espaços — ex.: romance"
+              value={data.feed.filterChip1Slug}
+              onChange={(v) => patch("feed", "filterChip1Slug", v)}
+            />
+            <Field
+              label="Chip 2 — rótulo"
+              value={data.feed.filterChip2Label}
+              onChange={(v) => patch("feed", "filterChip2Label", v)}
+            />
+            <Field
+              label="Chip 2 — slug"
+              value={data.feed.filterChip2Slug}
+              onChange={(v) => patch("feed", "filterChip2Slug", v)}
+            />
+            <Field
+              label="Chip 3 — rótulo"
+              value={data.feed.filterChip3Label}
+              onChange={(v) => patch("feed", "filterChip3Label", v)}
+            />
+            <Field
+              label="Chip 3 — slug"
+              value={data.feed.filterChip3Slug}
+              onChange={(v) => patch("feed", "filterChip3Slug", v)}
+            />
+            <Field
+              label="Nota para ti (slugs)"
+              help="Lembrete ao configurar publicações; não aparece no site."
+              value={data.feed.filterHint}
+              onChange={(v) => patch("feed", "filterHint", v)}
               multiline
             />
             <Field
@@ -375,6 +602,99 @@ export function CrmSiteEditor({ initial }: Props) {
               onChange={(v) => patch("quiz", "body", v)}
               multiline
             />
+            <p className="pt-4 text-sm font-medium text-ocean-800">
+              Passo «clima» (no ecrã inteiro, após nome, email e telemóvel)
+            </p>
+            <p className="text-xs text-ocean-500">
+              Após «Começar», o cliente escolhe neve, praia, cidade ou mistura —
+              as chaves na base de dados são fixas; aqui editas só os textos.
+            </p>
+            <Field
+              label="Pergunta do clima"
+              value={data.quiz.climaQuestion}
+              onChange={(v) => patch("quiz", "climaQuestion", v)}
+            />
+            <Field
+              label="Subtítulo / ajuda"
+              value={data.quiz.climaHint}
+              onChange={(v) => patch("quiz", "climaHint", v)}
+              multiline
+            />
+            <Field
+              label="Opção — neve / montanha"
+              value={data.quiz.climaLabelNeve}
+              onChange={(v) => patch("quiz", "climaLabelNeve", v)}
+            />
+            <Field
+              label="Opção — sol / praia"
+              value={data.quiz.climaLabelPraia}
+              onChange={(v) => patch("quiz", "climaLabelPraia", v)}
+            />
+            <Field
+              label="Opção — cidade / cultura"
+              value={data.quiz.climaLabelCidade}
+              onChange={(v) => patch("quiz", "climaLabelCidade", v)}
+            />
+            <Field
+              label="Opção — misturar"
+              value={data.quiz.climaLabelMisto}
+              onChange={(v) => patch("quiz", "climaLabelMisto", v)}
+            />
+            <p className="pt-4 text-sm font-medium text-ocean-800">
+              Página «Obrigado» após enviar o pedido
+            </p>
+            <p className="text-xs text-ocean-500">
+              Usa{" "}
+              <code className="rounded bg-ocean-50 px-1">{"{nome}"}</code> na
+              saudação para o primeiro nome (se disponível).
+            </p>
+            <Field
+              label="Saudação (com {nome})"
+              help='Ex.: «Olá, {nome}!»'
+              value={data.quizSuccess.greetingLine}
+              onChange={(v) => patchQuizSuccess("greetingLine", v)}
+            />
+            <Field
+              label="Título principal"
+              value={data.quizSuccess.headline}
+              onChange={(v) => patchQuizSuccess("headline", v)}
+            />
+            <Field
+              label="Texto do corpo"
+              value={data.quizSuccess.body}
+              onChange={(v) => patchQuizSuccess("body", v)}
+              multiline
+            />
+            <Field
+              label="Texto do link Spotify"
+              value={data.quizSuccess.spotifyLabel}
+              onChange={(v) => patchQuizSuccess("spotifyLabel", v)}
+              multiline
+            />
+            <Field
+              label="URL da playlist Spotify"
+              help="Opcional — sem URL o cartão não mostra o link"
+              value={data.quizSuccess.spotifyUrl}
+              onChange={(v) => patchQuizSuccess("spotifyUrl", v)}
+            />
+            <Field
+              label="Texto do botão para a página inicial"
+              value={data.quizSuccess.backHomeLabel}
+              onChange={(v) => patchQuizSuccess("backHomeLabel", v)}
+            />
+            <Field
+              label="Nota sobre email de confirmação"
+              help="Só aparece quando o envio automático de email correu bem"
+              value={data.quizSuccess.emailConfirmLine}
+              onChange={(v) => patchQuizSuccess("emailConfirmLine", v)}
+              multiline
+            />
+            <Field
+              label="Imagem de fundo do cartão (URL)"
+              help="Opcional — https; sobrepõe o gradiente por omissão com um véu legível"
+              value={data.quizSuccess.cardBackgroundUrl}
+              onChange={(v) => patchQuizSuccess("cardBackgroundUrl", v)}
+            />
           </fieldset>
         ) : null}
 
@@ -434,6 +754,94 @@ export function CrmSiteEditor({ initial }: Props) {
               value={data.consultora.ctaQuiz}
               onChange={(v) => patch("consultora", "ctaQuiz", v)}
             />
+          </fieldset>
+        ) : null}
+
+        {tab === "alma" ? (
+          <fieldset className="space-y-4 rounded-2xl border border-ocean-100 bg-white p-6 shadow-sm">
+            <legend className="px-1 text-lg font-semibold text-ocean-900">
+              Depoimentos (Viagens com alma)
+            </legend>
+            <p className="text-xs text-ocean-600">
+              Aparecem por baixo da secção da consultora. Só entram no site os
+              cartões com texto ou imagem preenchidos. Máximo 12.
+            </p>
+            <Field
+              label="Linha pequena"
+              value={data.almaTestimonials.eyebrow}
+              onChange={(v) => patchAlma("eyebrow", v)}
+            />
+            <Field
+              label="Título da secção"
+              value={data.almaTestimonials.title}
+              onChange={(v) => patchAlma("title", v)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={addAlmaItem}
+                disabled={data.almaTestimonials.items.length >= 12}
+                className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+              >
+                Adicionar depoimento
+              </button>
+            </div>
+            <ul className="space-y-6">
+              {data.almaTestimonials.items.map((it, index) => (
+                <li
+                  key={index}
+                  className="rounded-xl border border-ocean-100 bg-ocean-50/40 p-4"
+                >
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <span className="text-sm font-medium text-ocean-800">
+                      #{index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => moveAlmaItem(index, -1)}
+                      disabled={index === 0}
+                      className="text-xs text-ocean-600 underline disabled:opacity-30"
+                    >
+                      Subir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveAlmaItem(index, 1)}
+                      disabled={
+                        index === data.almaTestimonials.items.length - 1
+                      }
+                      className="text-xs text-ocean-600 underline disabled:opacity-30"
+                    >
+                      Descer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeAlmaItem(index)}
+                      className="text-xs font-medium text-terracotta underline"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                  <Field
+                    label="URL da foto"
+                    value={it.imageUrl}
+                    onChange={(v) => patchAlmaItem(index, "imageUrl", v)}
+                  />
+                  <Field
+                    label="Citação"
+                    value={it.quote}
+                    onChange={(v) => patchAlmaItem(index, "quote", v)}
+                    multiline
+                  />
+                  <Field
+                    label="Atribuição (opcional)"
+                    help="Ex.: Maria & João, Lisboa"
+                    value={it.attribution}
+                    onChange={(v) => patchAlmaItem(index, "attribution", v)}
+                  />
+                </li>
+              ))}
+            </ul>
           </fieldset>
         ) : null}
 

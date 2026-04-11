@@ -11,6 +11,10 @@ export type PublishedPost = {
   data_publicacao: string;
   /** Ordem no site: valores mais baixos aparecem primeiro no feed. */
   ordem_site: number;
+  /** Slugs alinhados com os chips do CMS (ex.: romance, retiro). */
+  feed_vibe_slugs: string[];
+  /** Frase curta no hover do cartão (opcional). */
+  hover_line: string | null;
 };
 
 export type MapPinPost = PublishedPost & {

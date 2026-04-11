@@ -17,6 +17,15 @@ const siteContentSchema = z.object({
       consultoraLinkLabel: line,
       scrollHint: line,
       heroImageUrl: line,
+      heroVideoUrl: line,
+      heroVideoPosterUrl: line,
+      promptQuestion: line,
+      promptBtn1Label: line,
+      promptBtn1Vibe: line,
+      promptBtn2Label: line,
+      promptBtn2Vibe: line,
+      promptBtn3Label: line,
+      promptBtn3Vibe: line,
     })
     .strict(),
   feed: z
@@ -26,6 +35,14 @@ const siteContentSchema = z.object({
       subtitle: line,
       moreLabel: line,
       emptyMessage: line,
+      filterAllLabel: line,
+      filterChip1Label: line,
+      filterChip1Slug: line,
+      filterChip2Label: line,
+      filterChip2Slug: line,
+      filterChip3Label: line,
+      filterChip3Slug: line,
+      filterHint: line,
     })
     .strict(),
   featuredVideo: z
@@ -43,6 +60,41 @@ const siteContentSchema = z.object({
       eyebrow: line,
       title: line,
       body: line,
+      climaQuestion: line,
+      climaHint: line,
+      climaLabelNeve: line,
+      climaLabelPraia: line,
+      climaLabelCidade: line,
+      climaLabelMisto: line,
+    })
+    .strict(),
+  quizSuccess: z
+    .object({
+      greetingLine: line,
+      headline: line,
+      body: line,
+      spotifyLabel: line,
+      spotifyUrl: line,
+      backHomeLabel: line,
+      emailConfirmLine: line,
+      cardBackgroundUrl: line,
+    })
+    .strict(),
+  almaTestimonials: z
+    .object({
+      eyebrow: line,
+      title: line,
+      items: z
+        .array(
+          z
+            .object({
+              imageUrl: z.string().max(2048),
+              quote: z.string().max(2000),
+              attribution: z.string().max(200),
+            })
+            .strict(),
+        )
+        .max(12),
     })
     .strict(),
   consultora: z
@@ -93,6 +145,15 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     consultoraLinkLabel: "Área da consultora",
     scrollHint: "Descer",
     heroImageUrl: "",
+    heroVideoUrl: "",
+    heroVideoPosterUrl: "",
+    promptQuestion: "",
+    promptBtn1Label: "",
+    promptBtn1Vibe: "",
+    promptBtn2Label: "",
+    promptBtn2Vibe: "",
+    promptBtn3Label: "",
+    promptBtn3Vibe: "",
   },
   feed: {
     eyebrow: "Curadoria",
@@ -102,6 +163,15 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     moreLabel: "Mais do feed",
     emptyMessage:
       "Em breve: novas inspirações e ofertas exclusivas. Entretanto, pede já a tua proposta — a Sílvia adora um desafio em branco.",
+    filterAllLabel: "Tudo",
+    filterChip1Label: "Romance",
+    filterChip1Slug: "romance",
+    filterChip2Label: "Retiro",
+    filterChip2Slug: "retiro",
+    filterChip3Label: "Adrenalina",
+    filterChip3Slug: "adrenalina",
+    filterHint:
+      "Nas publicações, usa os mesmos slugs (ex.: romance, retiro) separados por vírgula.",
   },
   featuredVideo: {
     eyebrow: "Publicações",
@@ -116,6 +186,30 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     eyebrow: "Da inspiração ao plano",
     title: "Inspiraste-te com uma publicação? Agora faz esse sonho ganhar forma",
     body: "Este é o teu pedido de proposta: em minutos a Sílvia percebe o teu estilo, quem te acompanha, o destino que imaginaste (mesmo que ainda seja uma ideia) e a faixa de investimento. Quanto mais claro fores, mais personalizada será a primeira resposta.",
+    climaQuestion: "Que clima te chama mais neste momento?",
+    climaHint:
+      "É só um ponto de partida — depois combinamos pormenores e alternativas.",
+    climaLabelNeve: "Neve e montanha",
+    climaLabelPraia: "Sol e praia",
+    climaLabelCidade: "Cidade e cultura",
+    climaLabelMisto: "Quero misturar tudo",
+  },
+  quizSuccess: {
+    greetingLine: "Olá, {nome}!",
+    headline: "A tua viagem já começou a ser desenhada.",
+    body: "A Sílvia está a analisar o teu perfil e entrará em contacto nas próximas 48 horas. Enquanto tanto, respira fundo — o melhor está a chegar.",
+    spotifyLabel:
+      "Enquanto preparo o teu orçamento, entra no clima com a playlist «Mundo» curada pela Sílvia.",
+    spotifyUrl: "",
+    backHomeLabel: "Voltar à página inicial",
+    emailConfirmLine:
+      "Enviámos um email de confirmação — verifica a pasta de spam se não o vires.",
+    cardBackgroundUrl: "",
+  },
+  almaTestimonials: {
+    eyebrow: "Viagens com alma",
+    title: "Histórias de quem já partiu com a Sílvia",
+    items: [],
   },
   consultora: {
     eyebrow: "A tua consultora",
@@ -226,6 +320,36 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
       p.featuredVideo as Record<string, unknown>,
     ) as SiteContent["featuredVideo"],
     quiz: mergeSection(base.quiz, p.quiz as Record<string, unknown>) as SiteContent["quiz"],
+    quizSuccess: mergeSection(
+      base.quizSuccess,
+      p.quizSuccess as Record<string, unknown>,
+    ) as SiteContent["quizSuccess"],
+    almaTestimonials: (() => {
+      const d = base.almaTestimonials;
+      const raw = p.almaTestimonials;
+      if (typeof raw !== "object" || raw === null) return d;
+      const o = raw as Record<string, unknown>;
+      const eyebrow =
+        typeof o.eyebrow === "string" ? o.eyebrow : d.eyebrow;
+      const title = typeof o.title === "string" ? o.title : d.title;
+      let items = d.items;
+      if (Array.isArray(o.items)) {
+        items = o.items
+          .filter(
+            (x): x is Record<string, unknown> =>
+              typeof x === "object" && x !== null,
+          )
+          .map((x) => ({
+            imageUrl:
+              typeof x.imageUrl === "string" ? x.imageUrl : "",
+            quote: typeof x.quote === "string" ? x.quote : "",
+            attribution:
+              typeof x.attribution === "string" ? x.attribution : "",
+          }))
+          .slice(0, 12);
+      }
+      return { eyebrow, title, items };
+    })(),
     consultora: mergeSection(
       base.consultora,
       p.consultora as Record<string, unknown>,

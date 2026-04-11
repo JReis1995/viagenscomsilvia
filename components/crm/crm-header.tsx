@@ -21,18 +21,20 @@ export function CrmHeader({ email }: Props) {
 
   return (
     <header className="border-b border-ocean-100 bg-white shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-4">
+        <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
           <Link
             href="/crm"
-            className="text-lg font-semibold tracking-tight text-ocean-900"
+            className="text-base font-semibold tracking-tight text-ocean-900 sm:text-lg"
           >
             CRM
           </Link>
           <span className="hidden text-ocean-300 sm:inline">·</span>
-          <span className="text-sm text-ocean-600">Viagens com Sílvia</span>
+          <span className="hidden text-sm text-ocean-600 sm:inline">
+            Viagens com Sílvia
+          </span>
         </div>
-        <nav className="flex flex-wrap items-center gap-1 text-sm font-medium text-ocean-700">
+        <nav className="order-3 flex w-full basis-full flex-wrap items-center gap-x-1 gap-y-1 text-xs font-medium text-ocean-700 sm:order-none sm:flex-1 sm:basis-auto sm:w-auto sm:justify-center sm:gap-1 sm:text-sm">
           <Link
             href="/crm"
             className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"

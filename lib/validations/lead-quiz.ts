@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { QUIZ_CLIMA_KEYS } from "@/lib/marketing/quiz-clima";
+
 const telemovelRefine = (s: string) => {
   const digits = s.replace(/\D/g, "");
   return digits.length >= 9 && digits.length <= 15;
@@ -8,6 +10,9 @@ const telemovelRefine = (s: string) => {
 export const leadQuizSchema = z.object({
   nome: z.string().trim().min(2, "Indica o teu nome.").max(120),
   email: z.string().trim().email("Email inválido.").max(255),
+  clima_preferido: z.enum(QUIZ_CLIMA_KEYS, {
+    message: "Escolhe o clima que mais te atrai neste momento.",
+  }),
   telemovel: z
     .string()
     .trim()

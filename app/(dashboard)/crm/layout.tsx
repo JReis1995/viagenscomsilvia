@@ -25,7 +25,7 @@ export default async function CrmLayout({
   return (
     <div className="flex min-h-full flex-col bg-sand">
       <CrmHeader email={user.email} />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 md:py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 md:py-10">
         {children}
       </main>
     </div>

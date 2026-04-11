@@ -45,7 +45,7 @@ export default async function CrmPublicacoesPage() {
   const { data, error } = await sr.client
     .from("posts")
     .select(
-      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, status, data_publicacao, ordem_site, membros_apenas, slug_destino, latitude, longitude",
+      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, status, data_publicacao, ordem_site, membros_apenas, slug_destino, latitude, longitude, feed_vibe_slugs, hover_line",
     )
     .order("ordem_site", { ascending: true })
     .order("data_publicacao", { ascending: false });
@@ -63,6 +63,10 @@ export default async function CrmPublicacoesPage() {
           e{" "}
           <code className="rounded bg-ocean-50 px-1">
             sql/sprint3_plan_features.sql
+          </code>{" "}
+          e{" "}
+          <code className="rounded bg-ocean-50 px-1">
+            sql/sprint_ux_s2_feed_vibes.sql
           </code>{" "}
           no Supabase.
         </p>

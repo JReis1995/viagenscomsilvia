@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { Suspense, useMemo, useSyncExternalStore } from "react";
 
 import { ConsultoraSection } from "@/components/marketing/consultora-section";
 import { ExperienceFeed } from "@/components/marketing/experience-feed";
@@ -99,14 +99,23 @@ export function SitePreviewShell({ posts }: Props) {
           </a>
         </div>
       </div>
-      <LuxuryHero copy={site.hero} />
+      <Suspense
+        fallback={
+          <div
+            className="min-h-[min(92svh,900px)] bg-gradient-to-br from-ocean-950 via-ocean-900 to-ocean-950"
+            aria-hidden
+          />
+        }
+      >
+        <LuxuryHero copy={site.hero} quizCopy={site.quiz} />
+      </Suspense>
       <ExperienceFeed
         posts={posts}
         feed={site.feed}
         featuredVideo={site.featuredVideo}
       />
       <InstagramSocialSection copy={site.socialFeed} />
-      <ConsultoraSection copy={site.consultora} />
+      <ConsultoraSection copy={site.consultora} alma={site.almaTestimonials} />
       <QuizSection copy={site.quiz} quizKey="preview" />
     </div>
   );

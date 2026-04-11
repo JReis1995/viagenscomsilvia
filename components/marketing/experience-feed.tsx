@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 import { FeaturedPublicationVideo } from "@/components/marketing/featured-publication-video";
 import { FeedWishlistButton } from "@/components/marketing/feed-wishlist-button";
@@ -61,11 +62,13 @@ function FeedCard({
   index,
   viewerUserId,
   wishlistedPostIds,
+  reduceMotion,
 }: {
   post: PublishedPost;
   index: number;
   viewerUserId: string | null;
   wishlistedPostIds: string[];
+  reduceMotion: boolean | null;
 }) {
   const href =
     post.link_cta?.trim() || buildPedidoOrcamentoHrefFromPost(post);
@@ -73,6 +76,11 @@ function FeedCard({
   const showVideoChrome =
     post.tipo === "video" || isLikelyVideoUrl(post.media_url);
   const isPromo = post.tipo === "promocao";
+  const hoverLine = post.hover_line?.trim();
+  const kenBurns =
+    !reduceMotion &&
+    "transition-transform duration-[9000ms] ease-out will-change-transform group-hover:scale-[1.1] group-hover:translate-x-[-1%]";
+  const imgMotion = reduceMotion ? "transition duration-700 group-hover:scale-[1.03]" : kenBurns;
 
   return (
     <motion.article
@@ -103,12 +111,12 @@ function FeedCard({
           </span>
         ) : null}
 
-        <div className="relative min-h-[200px] flex-1">
+        <div className="relative min-h-[200px] flex-1 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element -- URLs dinâmicos do CMS / Supabase Storage */}
           <img
             src={src}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+            className={`absolute inset-0 h-full w-full origin-center object-cover scale-100 ${imgMotion}`}
             loading="lazy"
             decoding="async"
           />
@@ -116,6 +124,15 @@ function FeedCard({
             className="absolute inset-0 bg-gradient-to-t from-ocean-950/95 via-ocean-950/35 to-ocean-950/10"
             aria-hidden
           />
+
+          {hoverLine ? (
+            <p
+              className="pointer-events-none absolute inset-x-4 bottom-[36%] z-[15] text-center font-serif text-sm italic leading-snug text-white opacity-0 drop-shadow-md transition-opacity duration-500 group-hover:opacity-100 sm:bottom-[34%] md:text-[15px]"
+              aria-hidden
+            >
+              {hoverLine}
+            </p>
+          ) : null}
 
           {showVideoChrome ? (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -162,6 +179,18 @@ type Props = {
   wishlistedPostIds?: string[];
 };
 
+function buildVibeChips(feed: SiteContent["feed"]) {
+  const raw = [
+    { label: feed.filterChip1Label, slug: feed.filterChip1Slug },
+    { label: feed.filterChip2Label, slug: feed.filterChip2Slug },
+    { label: feed.filterChip3Label, slug: feed.filterChip3Slug },
+  ];
+  return raw.filter((c) => {
+    const slug = c.slug.trim().toLowerCase();
+    return c.label.trim().length > 0 && slug.length > 0;
+  }) as { label: string; slug: string }[];
+}
+
 export function ExperienceFeed({
   posts,
   feed,
@@ -170,6 +199,14 @@ export function ExperienceFeed({
   wishlistedPostIds = [],
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const [activeVibeSlug, setActiveVibeSlug] = useState<string | null>(null);
+
+  const vibeChips = useMemo(() => buildVibeChips(feed), [feed]);
+
+  const filteredPosts = useMemo(() => {
+    if (!activeVibeSlug) return posts;
+    return posts.filter((p) => p.feed_vibe_slugs.includes(activeVibeSlug));
+  }, [posts, activeVibeSlug]);
 
   return (
     <section
@@ -212,20 +249,69 @@ export function ExperienceFeed({
           </motion.p>
         ) : (
           <div>
+            {vibeChips.length > 0 ? (
+              <div
+                className="mt-12 flex flex-wrap items-center justify-center gap-2"
+                role="group"
+                aria-label="Filtrar inspirações por vibe"
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveVibeSlug(null)}
+                  className={`rounded-full px-5 py-2.5 text-sm font-medium transition ${
+                    activeVibeSlug === null
+                      ? "bg-ocean-900 text-white shadow-md"
+                      : "border border-ocean-200/90 bg-white/80 text-ocean-800 hover:border-ocean-300"
+                  }`}
+                >
+                  {feed.filterAllLabel}
+                </button>
+                {vibeChips.map((c) => {
+                  const slug = c.slug.trim().toLowerCase();
+                  const active = activeVibeSlug === slug;
+                  return (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() =>
+                        setActiveVibeSlug(active ? null : slug)
+                      }
+                      className={`rounded-full px-5 py-2.5 text-sm font-medium transition ${
+                        active
+                          ? "bg-ocean-900 text-white shadow-md"
+                          : "border border-ocean-200/90 bg-white/80 text-ocean-800 hover:border-ocean-300"
+                      }`}
+                    >
+                      {c.label.trim()}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
             <p className="mt-14 text-center text-[11px] font-medium uppercase tracking-[0.3em] text-ocean-400">
               {feed.moreLabel}
             </p>
-            <div className="mt-6 grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-12 xl:gap-6">
-              {posts.map((post, index) => (
-                <FeedCard
-                  key={post.id}
-                  post={post}
-                  index={index}
-                  viewerUserId={viewerUserId}
-                  wishlistedPostIds={wishlistedPostIds}
-                />
-              ))}
-            </div>
+
+            {filteredPosts.length === 0 ? (
+              <p className="mx-auto mt-8 max-w-md text-center text-ocean-600">
+                Nenhuma publicação neste filtro. Experimenta «
+                {feed.filterAllLabel}» ou outro chip.
+              </p>
+            ) : (
+              <div className="mt-6 grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-12 xl:gap-6">
+                {filteredPosts.map((post, index) => (
+                  <FeedCard
+                    key={post.id}
+                    post={post}
+                    index={index}
+                    viewerUserId={viewerUserId}
+                    wishlistedPostIds={wishlistedPostIds}
+                    reduceMotion={reduceMotion}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { normalizeVibeSlugs } from "@/lib/posts/fetch-published";
 import { createPublicServerClient } from "@/lib/supabase/public-server";
 import type { MapPinPost } from "@/types/post";
 
@@ -7,7 +8,7 @@ export async function fetchMapPosts(): Promise<MapPinPost[]> {
   const { data, error } = await supabase
     .from("posts")
     .select(
-      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, data_publicacao, ordem_site, latitude, longitude, slug_destino",
+      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, data_publicacao, ordem_site, latitude, longitude, slug_destino, feed_vibe_slugs, hover_line",
     )
     .eq("status", true)
     .lte("data_publicacao", new Date().toISOString())
@@ -48,5 +49,10 @@ export async function fetchMapPosts(): Promise<MapPinPost[]> {
       latitude: row.latitude as number,
       longitude: row.longitude as number,
       slug_destino: row.slug_destino,
+      feed_vibe_slugs: normalizeVibeSlugs(row.feed_vibe_slugs),
+      hover_line:
+        typeof row.hover_line === "string" && row.hover_line.trim()
+          ? row.hover_line.trim()
+          : null,
     }));
 }

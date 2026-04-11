@@ -9,6 +9,8 @@ export type LeadBoardRow = {
   data_envio_orcamento: string | null;
   /** JSONB — validar com `parseDetalhesProposta` quando necessário */
   detalhes_proposta: unknown;
+  /** Chaves do quiz: neve | praia | cidade | misto */
+  clima_preferido: string | null;
   vibe: string | null;
   companhia: string | null;
   destino_sonho: string | null;

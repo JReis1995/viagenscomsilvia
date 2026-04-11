@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     nome: row.nome,
     email: row.email,
     telemovel: row.telemovel.trim(),
+    clima_preferido: row.clima_preferido,
     vibe: row.vibe,
     companhia: row.companhia,
     destino_sonho: row.destino_sonho,

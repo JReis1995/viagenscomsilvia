@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* Boutique viagens: lagoon (mar profundo), areia fria, coral suave — evita azul “corporate”. */
 :root {
   --background: #f5f3ef;
@@ -24,7 +34,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-mist-slow {
+  .hero-mist-slow,
+  .hero-wave-layer,
+  .hero-wave-layer-delayed,
+  .hero-wave-layer-strip,
+  .hero-wave-layer-strip-delayed,
+  .hero-beach-sun-glow,
+  .hero-beach-light-sweep,
+  .hero-beach-sparkle,
+  .hero-snowflake,
+  .hero-rain-drop,
+  .hero-misto-shimmer,
+  .hero-misto-shimmer-slow {
     animation: none !important;
   }
 }
@@ -43,6 +64,203 @@
 
 .hero-mist-slow {
   animation: hero-mist-drift 18s ease-in-out infinite;
+}
+
+@keyframes hero-wave-slide {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  100% {
+    transform: translateX(-22%) translateY(-14px);
+  }
+}
+
+@keyframes hero-wave-slide-alt {
+  0% {
+    transform: translateX(0) translateY(6px);
+  }
+  100% {
+    transform: translateX(-24%) translateY(-10px);
+  }
+}
+
+.hero-wave-layer {
+  animation: hero-wave-slide 4s ease-in-out infinite alternate;
+}
+
+.hero-wave-layer-delayed {
+  animation: hero-wave-slide-alt 5.2s ease-in-out infinite alternate-reverse;
+}
+
+/* Ondas da praia: só deslizam na horizontal (faixa inferior). */
+@keyframes hero-wave-strip-slide {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-14%);
+  }
+}
+
+@keyframes hero-wave-strip-slide-alt {
+  0% {
+    transform: translateX(-4%);
+  }
+  100% {
+    transform: translateX(-18%);
+  }
+}
+
+.hero-wave-layer-strip {
+  animation: hero-wave-strip-slide 4.8s ease-in-out infinite alternate;
+}
+
+.hero-wave-layer-strip-delayed {
+  animation: hero-wave-strip-slide-alt 6s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes hero-beach-sun-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.07);
+  }
+}
+
+.hero-beach-sun-glow {
+  background: radial-gradient(
+    ellipse 130% 80% at 50% -18%,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(200, 250, 255, 0.12) 35%,
+    transparent 58%
+  );
+  animation: hero-beach-sun-pulse 4.2s ease-in-out infinite;
+}
+
+@keyframes hero-beach-sweep-move {
+  0% {
+    background-position: 0% 40%;
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.42;
+  }
+  100% {
+    background-position: 100% 60%;
+    opacity: 0.22;
+  }
+}
+
+.hero-beach-light-sweep {
+  background: linear-gradient(
+    118deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.22) 49%,
+    rgba(200, 250, 255, 0.15) 52%,
+    transparent 63%,
+    transparent 100%
+  );
+  background-size: 240% 240%;
+  animation: hero-beach-sweep-move 6.5s ease-in-out infinite;
+}
+
+@keyframes hero-beach-sparkle-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.75) translateX(0);
+  }
+  35% {
+    opacity: 0.9;
+    transform: scale(1.25) translateX(3px);
+  }
+  65% {
+    opacity: 0.45;
+    transform: scale(1) translateX(-2px);
+  }
+}
+
+.hero-beach-sparkle {
+  animation-name: hero-beach-sparkle-pulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes hero-snow-fall {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(115vh) translateX(28px) rotate(200deg);
+    opacity: 0.35;
+  }
+}
+
+.hero-snowflake {
+  animation-name: hero-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes hero-rain-fall {
+  0% {
+    transform: translateY(-8vh) translateX(0);
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(115vh) translateX(-10px);
+    opacity: 0.12;
+  }
+}
+
+.hero-rain-drop {
+  animation-name: hero-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes hero-misto-shimmer-move {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.06) rotate(1deg);
+  }
+}
+
+@keyframes hero-misto-sweep {
+  0% {
+    opacity: 0.15;
+    transform: translateX(-8%) translateY(4%) scale(1.1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: translateX(8%) translateY(-4%) scale(1.15);
+  }
+  100% {
+    opacity: 0.15;
+    transform: translateX(-8%) translateY(4%) scale(1.1);
+  }
+}
+
+.hero-misto-shimmer {
+  animation: hero-misto-shimmer-move 9s ease-in-out infinite;
+}
+
+.hero-misto-shimmer-slow {
+  animation: hero-misto-sweep 14s ease-in-out infinite;
 }
 
 body {

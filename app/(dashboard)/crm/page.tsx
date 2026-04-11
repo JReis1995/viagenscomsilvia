@@ -32,7 +32,7 @@ export default async function CrmHomePage() {
     const res = await sr.client
       .from("leads")
       .select(
-        "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, vibe, companhia, destino_sonho, orcamento_estimado, auto_followup",
+        "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, auto_followup",
       )
       .order("data_pedido", { ascending: false });
     data = res.data as LeadBoardRow[] | null;
