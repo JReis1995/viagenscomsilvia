@@ -16,6 +16,7 @@ import {
 } from "@/lib/marketing/lead-thanks-storage";
 import type { PedidoOrcamentoPrefill } from "@/lib/marketing/pedido-orcamento";
 import {
+  CLIMA_LABEL_QUIZ_FIELD,
   climaLabelForKey,
   climaOptionsFromCopy,
   type QuizClimaKey,
@@ -26,11 +27,15 @@ import {
 } from "@/lib/marketing/pedido-clima-url";
 import { getLeadMarketingAttributionPayload } from "@/lib/marketing/session-attribution";
 import { CrmInlineText } from "@/components/crm/crm-inline-text";
+import {
+  flexibilidadeLabel,
+  voosHotelLabel,
+} from "@/lib/marketing/quiz-qualificacao";
 import { quizImmersiveShellClass } from "@/lib/marketing/quiz-vibe-theme";
 import type { SiteContent } from "@/lib/site/site-content";
 import { trackFunnelEvent } from "@/lib/analytics/funnel";
 
-const LAST_STEP = 9;
+const LAST_STEP = 12;
 
 type FormData = {
   clima: QuizClimaKey | "";
@@ -41,6 +46,13 @@ type FormData = {
   companhia: string;
   destino_sonho: string;
   orcamento_estimado: string;
+  janela_datas: string;
+  flexibilidade_datas:
+    | ""
+    | "fixas"
+    | "mais_menos_semana"
+    | "totalmente_flexivel";
+  ja_tem_voos_hotel: "" | "nada" | "so_voos" | "so_hotel" | "ambos";
 };
 
 const initialForm: FormData = {
@@ -52,6 +64,9 @@ const initialForm: FormData = {
   companhia: "",
   destino_sonho: "",
   orcamento_estimado: "",
+  janela_datas: "",
+  flexibilidade_datas: "",
+  ja_tem_voos_hotel: "",
 };
 
 function formWithPrefill(prefill: PedidoOrcamentoPrefill | null): FormData {
@@ -75,6 +90,15 @@ type Props = {
     patchQuiz: (field: keyof SiteContent["quiz"], value: string) => void;
   };
 };
+
+function qLine(
+  copy: SiteContent["quiz"],
+  key: keyof SiteContent["quiz"],
+  fallback: string,
+): string {
+  const raw = copy[key];
+  return typeof raw === "string" && raw.trim() ? raw.trim() : fallback;
+}
 
 export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
   const router = useRouter();
@@ -269,6 +293,18 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       case 8:
         if (!form.orcamento_estimado) return "Escolhe uma faixa de orçamento.";
         return null;
+      case 9:
+        if (form.janela_datas.trim().length < 2)
+          return "Indica uma janela de datas (mesmo aproximada).";
+        return null;
+      case 10:
+        if (!form.flexibilidade_datas)
+          return "Escolhe o quanto podes flexibilizar as datas.";
+        return null;
+      case 11:
+        if (!form.ja_tem_voos_hotel)
+          return "Indica se já tens voos ou hotel reservados.";
+        return null;
       default:
         return null;
     }
@@ -300,6 +336,12 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
     if (form.destino_sonho.trim().length < 2)
       return "Descreve o destino ou ideia.";
     if (!form.orcamento_estimado) return "Escolhe uma faixa de orçamento.";
+    if (form.janela_datas.trim().length < 2)
+      return "Indica uma janela de datas (mesmo aproximada).";
+    if (!form.flexibilidade_datas)
+      return "Escolhe o quanto podes flexibilizar as datas.";
+    if (!form.ja_tem_voos_hotel)
+      return "Indica se já tens voos ou hotel reservados.";
     return null;
   }
 
@@ -324,6 +366,9 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
           companhia: form.companhia,
           destino_sonho: form.destino_sonho.trim(),
           orcamento_estimado: form.orcamento_estimado,
+          janela_datas: form.janela_datas.trim(),
+          flexibilidade_datas: form.flexibilidade_datas,
+          ja_tem_voos_hotel: form.ja_tem_voos_hotel,
           website_url: honeypot,
           ...getLeadMarketingAttributionPayload(),
         }),
@@ -332,12 +377,21 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
         ok?: boolean;
         error?: string;
         emailSent?: boolean;
+        code?: string;
       };
       if (!res.ok) {
         trackFunnelEvent("lead_submit_error", {
           kind: "full",
           status: String(res.status),
         });
+        if (res.status === 409 && data.code === "duplicate_open_lead") {
+          setError(
+            quizCopy.duplicateOpenLeadMessage.trim() ||
+              data.error ||
+              "Já existe um pedido em aberto com este contacto.",
+          );
+          return;
+        }
         setError(data.error ?? "Algo correu mal. Tenta novamente.");
         return;
       }
@@ -403,12 +457,21 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
         ok?: boolean;
         error?: string;
         emailSent?: boolean;
+        code?: string;
       };
       if (!res.ok) {
         trackFunnelEvent("lead_submit_error", {
           kind: "quick",
           status: String(res.status),
         });
+        if (res.status === 409 && data.code === "duplicate_open_lead") {
+          setError(
+            quizCopy.duplicateOpenLeadMessage.trim() ||
+              data.error ||
+              "Já existe um pedido em aberto com este contacto.",
+          );
+          return;
+        }
         setError(data.error ?? "Algo correu mal. Tenta novamente.");
         return;
       }
@@ -478,10 +541,31 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 1 && (
         <div className="mx-auto max-w-md">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Como te chamas?
+            {crm ? (
+              <CrmInlineText
+                label="Passo nome — título"
+                value={quizCopy.pedidoStep1Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep1Title", v)}
+              />
+            ) : (
+              qLine(quizCopy, "pedidoStep1Title", "Como te chamas?")
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            O nome que preferires que usemos nas mensagens.
+            {crm ? (
+              <CrmInlineText
+                label="Passo nome — texto de ajuda"
+                multiline
+                value={quizCopy.pedidoStep1Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep1Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep1Hint",
+                "O nome que preferires que usemos nas mensagens.",
+              )
+            )}
           </p>
           <input
             type="text"
@@ -492,7 +576,7 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
             }
             onKeyDown={(e) => e.key === "Enter" && handleNext()}
             className="mt-8 w-full rounded-2xl border border-ocean-100 bg-white/90 px-4 py-3.5 text-ocean-900 outline-none ring-ocean-500/20 transition focus:border-ocean-500 focus:ring-2"
-            placeholder="O teu nome"
+            placeholder={qLine(quizCopy, "pedidoStep1Placeholder", "O teu nome")}
             autoComplete="name"
           />
         </div>
@@ -501,10 +585,31 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 2 && (
         <div className="mx-auto max-w-md">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            O teu email
+            {crm ? (
+              <CrmInlineText
+                label="Passo email — título"
+                value={quizCopy.pedidoStep2Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep2Title", v)}
+              />
+            ) : (
+              qLine(quizCopy, "pedidoStep2Title", "O teu email")
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Para te enviarmos confirmação e a proposta quando estiver pronta.
+            {crm ? (
+              <CrmInlineText
+                label="Passo email — texto de ajuda"
+                multiline
+                value={quizCopy.pedidoStep2Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep2Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep2Hint",
+                "Para te enviarmos confirmação e a proposta quando estiver pronta.",
+              )
+            )}
           </p>
           <input
             type="email"
@@ -515,7 +620,11 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
             }
             onKeyDown={(e) => e.key === "Enter" && handleNext()}
             className="mt-8 w-full rounded-2xl border border-ocean-100 bg-white/90 px-4 py-3.5 text-ocean-900 outline-none ring-ocean-500/20 transition focus:border-ocean-500 focus:ring-2"
-            placeholder="nome@email.com"
+            placeholder={qLine(
+              quizCopy,
+              "pedidoStep2Placeholder",
+              "nome@email.com",
+            )}
             autoComplete="email"
           />
         </div>
@@ -524,11 +633,31 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 3 && (
         <div className="mx-auto max-w-md">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            O teu telemóvel
+            {crm ? (
+              <CrmInlineText
+                label="Passo telemóvel — título"
+                value={quizCopy.pedidoStep3Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep3Title", v)}
+              />
+            ) : (
+              qLine(quizCopy, "pedidoStep3Title", "O teu telemóvel")
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Para a Sílvia te poder ligar com rapidez se fizer sentido — não
-            partilhamos o número fora deste contacto.
+            {crm ? (
+              <CrmInlineText
+                label="Passo telemóvel — texto de ajuda"
+                multiline
+                value={quizCopy.pedidoStep3Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep3Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep3Hint",
+                "Para a Sílvia te poder ligar com rapidez se fizer sentido — não partilhamos o número fora deste contacto.",
+              )
+            )}
           </p>
           <input
             type="tel"
@@ -541,7 +670,11 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
             }
             onKeyDown={(e) => e.key === "Enter" && handleNext()}
             className="mt-8 w-full rounded-2xl border border-ocean-100 bg-white/90 px-4 py-3.5 text-ocean-900 outline-none ring-ocean-500/20 transition focus:border-ocean-500 focus:ring-2"
-            placeholder="Ex.: 912 345 678 ou +351 912 345 678"
+            placeholder={qLine(
+              quizCopy,
+              "pedidoStep3Placeholder",
+              "Ex.: 912 345 678 ou +351 912 345 678",
+            )}
           />
         </div>
       )}
@@ -549,37 +682,71 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 4 && (
         <div>
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            {quizCopy.climaQuestion.trim() ||
-              "Que clima te chama mais neste momento?"}
+            {crm ? (
+              <CrmInlineText
+                label="Passo clima — pergunta"
+                value={quizCopy.climaQuestion}
+                onApply={(v) => crm.patchQuiz("climaQuestion", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "climaQuestion",
+                "Que clima te chama mais neste momento?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            {quizCopy.climaHint.trim() ||
-              "É só um ponto de partida — depois combinamos pormenores e alternativas."}
+            {crm ? (
+              <CrmInlineText
+                label="Passo clima — ajuda"
+                multiline
+                value={quizCopy.climaHint}
+                onApply={(v) => crm.patchQuiz("climaHint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "climaHint",
+                "É só um ponto de partida — depois combinamos pormenores e alternativas.",
+              )
+            )}
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {climaOptions.map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => {
-                  setForm((f) => ({ ...f, clima: opt.key }));
-                  setError(null);
-                  replacePedidoClimaInUrl(
-                    router,
-                    pathname,
-                    pedidoClimaQuery,
-                    opt.key,
-                  );
-                }}
-                className={`rounded-2xl border px-4 py-4 text-left text-sm font-medium transition ${
-                  form.clima === opt.key
-                    ? "border-ocean-500 bg-ocean-50 text-ocean-900 shadow-md"
-                    : "border-ocean-100 bg-white/80 text-ocean-800 hover:border-ocean-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {climaOptions.map((opt) => {
+              const field = CLIMA_LABEL_QUIZ_FIELD[opt.key];
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, clima: opt.key }));
+                    setError(null);
+                    replacePedidoClimaInUrl(
+                      router,
+                      pathname,
+                      pedidoClimaQuery,
+                      opt.key,
+                    );
+                  }}
+                  className={`rounded-2xl border px-4 py-4 text-left text-sm font-medium transition ${
+                    form.clima === opt.key
+                      ? "border-ocean-500 bg-ocean-50 text-ocean-900 shadow-md"
+                      : "border-ocean-100 bg-white/80 text-ocean-800 hover:border-ocean-200"
+                  }`}
+                >
+                  {crm ? (
+                    <CrmInlineText
+                      label={`Opção clima: ${opt.key}`}
+                      value={String(quizCopy[field])}
+                      onApply={(v) => crm.patchQuiz(field, v)}
+                    />
+                  ) : (
+                    opt.label
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -587,10 +754,35 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 5 && (
         <div>
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Que experiência te faz brilhar os olhos?
+            {crm ? (
+              <CrmInlineText
+                label="Passo experiência — título"
+                value={quizCopy.pedidoStep5Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep5Title", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep5Title",
+                "Que experiência te faz brilhar os olhos?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Escolhe a que mais se aproxima — depois afinamos ao pormenor.
+            {crm ? (
+              <CrmInlineText
+                label="Passo experiência — ajuda"
+                multiline
+                value={quizCopy.pedidoStep5Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep5Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep5Hint",
+                "Escolhe a que mais se aproxima — depois afinamos ao pormenor.",
+              )
+            )}
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {VIBE_OPTIONS.map((opt) => (
@@ -617,10 +809,35 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 6 && (
         <div>
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Com quem imaginas partir à descoberta?
+            {crm ? (
+              <CrmInlineText
+                label="Passo companhia — título"
+                value={quizCopy.pedidoStep6Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep6Title", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep6Title",
+                "Com quem imaginas partir à descoberta?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Ajuda-nos a pensar em quartos, ritmo e tipo de experiência.
+            {crm ? (
+              <CrmInlineText
+                label="Passo companhia — ajuda"
+                multiline
+                value={quizCopy.pedidoStep6Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep6Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep6Hint",
+                "Ajuda-nos a pensar em quartos, ritmo e tipo de experiência.",
+              )
+            )}
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {COMPANHIA_OPTIONS.map((opt) => (
@@ -647,11 +864,35 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 7 && (
         <div className="mx-auto max-w-lg">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Onde queres que a história comece?
+            {crm ? (
+              <CrmInlineText
+                label="Passo destino — título"
+                value={quizCopy.pedidoStep7Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep7Title", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep7Title",
+                "Onde queres que a história comece?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            País, ilha, cidade ou até uma ideia vaga — se vieste de uma
-            publicação, já deixámos uma sugestão; podes alterar à vontade.
+            {crm ? (
+              <CrmInlineText
+                label="Passo destino — ajuda"
+                multiline
+                value={quizCopy.pedidoStep7Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep7Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep7Hint",
+                "País, ilha, cidade ou até uma ideia vaga — se vieste de uma publicação, já deixámos uma sugestão; podes alterar à vontade.",
+              )
+            )}
           </p>
           <textarea
             autoFocus
@@ -661,7 +902,11 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
             }
             rows={5}
             className="mt-8 w-full resize-y rounded-2xl border border-ocean-100 bg-white/90 px-4 py-3.5 text-ocean-900 outline-none ring-ocean-500/20 transition focus:border-ocean-500 focus:ring-2"
-            placeholder="Ex.: Maldivas em bungalow sobre a água, Japão na primavera…"
+            placeholder={qLine(
+              quizCopy,
+              "pedidoStep7Placeholder",
+              "Ex.: Maldivas em bungalow sobre a água, Japão na primavera…",
+            )}
           />
         </div>
       )}
@@ -669,11 +914,35 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
       {step === 8 && (
         <div>
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Em que faixa te queres mover?
+            {crm ? (
+              <CrmInlineText
+                label="Passo orçamento — título"
+                value={quizCopy.pedidoStep8Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep8Title", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep8Title",
+                "Em que faixa te queres mover?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Por pessoa ou por casal — como fizer sentido para ti. É só uma
-            referência para calibrarmos expectativas.
+            {crm ? (
+              <CrmInlineText
+                label="Passo orçamento — ajuda"
+                multiline
+                value={quizCopy.pedidoStep8Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep8Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep8Hint",
+                "Por pessoa ou por casal — como fizer sentido para ti. É só uma referência para calibrarmos expectativas.",
+              )
+            )}
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {ORCAMENTO_OPTIONS.map((opt) => (
@@ -697,19 +966,257 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
         </div>
       )}
 
+      {step === 9 && (
+        <div className="mx-auto max-w-lg">
+          <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
+            {crm ? (
+              <CrmInlineText
+                label="Janela de datas — pergunta"
+                value={quizCopy.janelaDatasQuestion}
+                onApply={(v) => crm.patchQuiz("janelaDatasQuestion", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "janelaDatasQuestion",
+                "Que janela de datas tens em mente?",
+              )
+            )}
+          </h2>
+          <p className="mt-2 text-sm text-ocean-600">
+            {crm ? (
+              <CrmInlineText
+                label="Janela de datas — ajuda"
+                multiline
+                value={quizCopy.janelaDatasHint}
+                onApply={(v) => crm.patchQuiz("janelaDatasHint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "janelaDatasHint",
+                "Mesmo aproximada — ajuda a preparar orçamentos sem idas e voltas.",
+              )
+            )}
+          </p>
+          <textarea
+            autoFocus
+            value={form.janela_datas}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, janela_datas: e.target.value }))
+            }
+            rows={4}
+            className="mt-8 w-full resize-y rounded-2xl border border-ocean-100 bg-white/90 px-4 py-3.5 text-ocean-900 outline-none ring-ocean-500/20 transition focus:border-ocean-500 focus:ring-2"
+            placeholder={qLine(
+              quizCopy,
+              "janelaDatasPlaceholder",
+              "Ex.: 10 a 20 de agosto…",
+            )}
+          />
+        </div>
+      )}
+
+      {step === 10 && (
+        <div>
+          <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
+            {crm ? (
+              <CrmInlineText
+                label="Flexibilidade — pergunta"
+                value={quizCopy.flexDatasQuestion}
+                onApply={(v) => crm.patchQuiz("flexDatasQuestion", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "flexDatasQuestion",
+                "Quão fixas são essas datas?",
+              )
+            )}
+          </h2>
+          <p className="mt-2 text-sm text-ocean-600">
+            {crm ? (
+              <CrmInlineText
+                label="Flexibilidade — ajuda"
+                multiline
+                value={quizCopy.flexDatasHint}
+                onApply={(v) => crm.patchQuiz("flexDatasHint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "flexDatasHint",
+                "Quanto mais margem tiveres, mais opções costumam aparecer.",
+              )
+            )}
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                {
+                  value: "fixas" as const,
+                  field: "flexDatasLabelFixas" as const,
+                  fb: "Datas fixas (não posso mudar)",
+                },
+                {
+                  value: "mais_menos_semana" as const,
+                  field: "flexDatasLabelMaisMenosUmaSemana" as const,
+                  fb: "Posso flexibilizar cerca de uma semana",
+                },
+                {
+                  value: "totalmente_flexivel" as const,
+                  field: "flexDatasLabelTotalmenteFlex" as const,
+                  fb: "Totalmente flexível — o melhor preço manda",
+                },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setForm((f) => ({ ...f, flexibilidade_datas: opt.value }));
+                  setError(null);
+                }}
+                className={`rounded-2xl border px-4 py-4 text-left text-sm font-medium transition ${
+                  form.flexibilidade_datas === opt.value
+                    ? "border-ocean-500 bg-ocean-50 text-ocean-900 shadow-md"
+                    : "border-ocean-100 bg-white/80 text-ocean-800 hover:border-ocean-200"
+                }`}
+              >
+                {crm ? (
+                  <CrmInlineText
+                    label={`Flexibilidade — opção ${opt.value}`}
+                    value={String(quizCopy[opt.field])}
+                    onApply={(v) => crm.patchQuiz(opt.field, v)}
+                  />
+                ) : (
+                  qLine(quizCopy, opt.field, opt.fb)
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 11 && (
+        <div>
+          <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
+            {crm ? (
+              <CrmInlineText
+                label="Voos/hotel — pergunta"
+                value={quizCopy.voosHotelQuestion}
+                onApply={(v) => crm.patchQuiz("voosHotelQuestion", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "voosHotelQuestion",
+                "Já tens voos ou hotel reservados?",
+              )
+            )}
+          </h2>
+          <p className="mt-2 text-sm text-ocean-600">
+            {crm ? (
+              <CrmInlineText
+                label="Voos/hotel — ajuda"
+                multiline
+                value={quizCopy.voosHotelHint}
+                onApply={(v) => crm.patchQuiz("voosHotelHint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "voosHotelHint",
+                "Sabermos isto evita duplicar trabalho na proposta.",
+              )
+            )}
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                {
+                  value: "nada" as const,
+                  field: "voosHotelLabelNada" as const,
+                  fb: "Ainda não — quero ajuda com tudo",
+                },
+                {
+                  value: "so_voos" as const,
+                  field: "voosHotelLabelSoVoos" as const,
+                  fb: "Já tenho voos",
+                },
+                {
+                  value: "so_hotel" as const,
+                  field: "voosHotelLabelSoHotel" as const,
+                  fb: "Já tenho hotel / alojamento",
+                },
+                {
+                  value: "ambos" as const,
+                  field: "voosHotelLabelAmbos" as const,
+                  fb: "Já tenho voos e hotel",
+                },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setForm((f) => ({ ...f, ja_tem_voos_hotel: opt.value }));
+                  setError(null);
+                }}
+                className={`rounded-2xl border px-4 py-4 text-left text-sm font-medium transition ${
+                  form.ja_tem_voos_hotel === opt.value
+                    ? "border-ocean-500 bg-ocean-50 text-ocean-900 shadow-md"
+                    : "border-ocean-100 bg-white/80 text-ocean-800 hover:border-ocean-200"
+                }`}
+              >
+                {crm ? (
+                  <CrmInlineText
+                    label={`Voos/hotel — opção ${opt.value}`}
+                    value={String(quizCopy[opt.field])}
+                    onApply={(v) => crm.patchQuiz(opt.field, v)}
+                  />
+                ) : (
+                  qLine(quizCopy, opt.field, opt.fb)
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(step === 3 || step === 4) && (
         <div className="mt-8 rounded-2xl border border-ocean-200/90 bg-ocean-50/60 p-5 text-left">
           {!quickOpen ? (
             <>
               <p className="text-sm font-medium text-ocean-800">
-                Preferes não continuar com todos os passos agora?
+                {crm ? (
+                  <CrmInlineText
+                    label="Pedido rápido — título do cartão"
+                    value={quizCopy.pedidoRapidoCardTitle}
+                    onApply={(v) => crm.patchQuiz("pedidoRapidoCardTitle", v)}
+                  />
+                ) : (
+                  qLine(
+                    quizCopy,
+                    "pedidoRapidoCardTitle",
+                    "Preferes não continuar com todos os passos agora?",
+                  )
+                )}
               </p>
               <p className="mt-1 text-sm text-ocean-600">
-                Envia um{" "}
-                <span className="font-medium text-ocean-800">pedido rápido</span>{" "}
-                com o contacto que já indicaste e uma linha sobre o destino — a
-                Sílvia trata do resto. O formulário completo continua disponível
-                se quiseres voltar depois.
+                {crm ? (
+                  <CrmInlineText
+                    label="Pedido rápido — texto do cartão"
+                    multiline
+                    value={quizCopy.pedidoRapidoCardBody}
+                    onApply={(v) => crm.patchQuiz("pedidoRapidoCardBody", v)}
+                  />
+                ) : (
+                  qLine(
+                    quizCopy,
+                    "pedidoRapidoCardBody",
+                    "Envia um pedido rápido com o contacto que já indicaste e uma linha sobre o destino — a Sílvia trata do resto. O formulário completo continua disponível se quiseres voltar depois.",
+                  )
+                )}
               </p>
               <button
                 type="button"
@@ -719,24 +1226,60 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
                 }}
                 className="mt-4 text-sm font-semibold text-ocean-700 underline decoration-ocean-300 underline-offset-4 transition hover:text-ocean-900"
               >
-                Usar pedido rápido (contacto + destino)
+                {crm ? (
+                  <CrmInlineText
+                    label="Pedido rápido — texto do link"
+                    value={quizCopy.pedidoRapidoCardCta}
+                    onApply={(v) => crm.patchQuiz("pedidoRapidoCardCta", v)}
+                  />
+                ) : (
+                  qLine(
+                    quizCopy,
+                    "pedidoRapidoCardCta",
+                    "Usar pedido rápido (contacto + destino)",
+                  )
+                )}
               </button>
             </>
           ) : (
             <div className="space-y-4">
               <p className="text-sm font-medium text-ocean-900">
-                Pedido rápido
+                {crm ? (
+                  <CrmInlineText
+                    label="Pedido rápido — título no painel"
+                    value={quizCopy.pedidoRapidoModalTitle}
+                    onApply={(v) => crm.patchQuiz("pedidoRapidoModalTitle", v)}
+                  />
+                ) : (
+                  qLine(quizCopy, "pedidoRapidoModalTitle", "Pedido rápido")
+                )}
               </p>
               <p className="text-sm text-ocean-600">
-                Uma linha sobre onde queres ir ou o que imaginaste — depois
-                completamos pormenores contigo.
+                {crm ? (
+                  <CrmInlineText
+                    label="Pedido rápido — texto no painel"
+                    multiline
+                    value={quizCopy.pedidoRapidoModalBody}
+                    onApply={(v) => crm.patchQuiz("pedidoRapidoModalBody", v)}
+                  />
+                ) : (
+                  qLine(
+                    quizCopy,
+                    "pedidoRapidoModalBody",
+                    "Uma linha sobre onde queres ir ou o que imaginaste — depois completamos pormenores contigo.",
+                  )
+                )}
               </p>
               <textarea
                 value={quickDestino}
                 onChange={(e) => setQuickDestino(e.target.value)}
                 rows={3}
                 className="w-full resize-y rounded-2xl border border-ocean-100 bg-white/95 px-4 py-3 text-sm text-ocean-900 outline-none ring-ocean-500/20 focus:border-ocean-500 focus:ring-2"
-                placeholder="Ex.: Lua-de-mel nas Maldivas em maio…"
+                placeholder={qLine(
+                  quizCopy,
+                  "pedidoRapidoModalPlaceholder",
+                  "Ex.: Lua-de-mel nas Maldivas em maio…",
+                )}
                 autoFocus
               />
               <div className="flex flex-wrap gap-3">
@@ -746,7 +1289,13 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
                   onClick={() => void handleQuickSubmit()}
                   className="inline-flex h-11 min-w-[160px] items-center justify-center rounded-2xl bg-terracotta px-5 text-sm font-semibold text-white shadow-md transition hover:bg-terracotta-hover disabled:opacity-60"
                 >
-                  {quickLoading ? "A enviar…" : "Enviar pedido rápido"}
+                  {quickLoading
+                    ? "A enviar…"
+                    : qLine(
+                        quizCopy,
+                        "pedidoRapidoModalSubmit",
+                        "Enviar pedido rápido",
+                      )}
                 </button>
                 <button
                   type="button"
@@ -758,7 +1307,19 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
                   }}
                   className="rounded-2xl px-4 py-2.5 text-sm font-medium text-ocean-600 hover:bg-ocean-100/80"
                 >
-                  Continuar o pedido completo
+                  {crm ? (
+                    <CrmInlineText
+                      label="Pedido rápido — voltar ao formulário completo"
+                      value={quizCopy.pedidoRapidoModalBack}
+                      onApply={(v) => crm.patchQuiz("pedidoRapidoModalBack", v)}
+                    />
+                  ) : (
+                    qLine(
+                      quizCopy,
+                      "pedidoRapidoModalBack",
+                      "Continuar o pedido completo",
+                    )
+                  )}
                 </button>
               </div>
             </div>
@@ -766,13 +1327,38 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
         </div>
       )}
 
-      {step === 9 && (
+      {step === 12 && (
         <div className="mx-auto max-w-lg">
           <h2 className="text-xl font-semibold text-ocean-900 md:text-2xl">
-            Está tudo como imaginaste?
+            {crm ? (
+              <CrmInlineText
+                label="Revisão final — título"
+                value={quizCopy.pedidoStep12Title}
+                onApply={(v) => crm.patchQuiz("pedidoStep12Title", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep12Title",
+                "Está tudo como imaginaste?",
+              )
+            )}
           </h2>
           <p className="mt-2 text-sm text-ocean-600">
-            Revê os detalhes — depois é connosco: a Sílvia trata do resto.
+            {crm ? (
+              <CrmInlineText
+                label="Revisão final — ajuda"
+                multiline
+                value={quizCopy.pedidoStep12Hint}
+                onApply={(v) => crm.patchQuiz("pedidoStep12Hint", v)}
+              />
+            ) : (
+              qLine(
+                quizCopy,
+                "pedidoStep12Hint",
+                "Revê os detalhes — depois é connosco: a Sílvia trata do resto.",
+              )
+            )}
           </p>
           <dl className="mt-8 space-y-4 rounded-2xl bg-ocean-50/80 p-6 text-sm">
             <div>
@@ -812,6 +1398,28 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
             <div>
               <dt className="font-medium text-ocean-500">Orçamento</dt>
               <dd className="mt-1 text-ocean-900">{form.orcamento_estimado}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ocean-500">Janela de datas</dt>
+              <dd className="mt-1 whitespace-pre-wrap text-ocean-900">
+                {form.janela_datas.trim()}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ocean-500">Flexibilidade</dt>
+              <dd className="mt-1 text-ocean-900">
+                {form.flexibilidade_datas
+                  ? flexibilidadeLabel(form.flexibilidade_datas, quizCopy)
+                  : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ocean-500">Voos / hotel</dt>
+              <dd className="mt-1 text-ocean-900">
+                {form.ja_tem_voos_hotel
+                  ? voosHotelLabel(form.ja_tem_voos_hotel, quizCopy)
+                  : "—"}
+              </dd>
             </div>
           </dl>
         </div>

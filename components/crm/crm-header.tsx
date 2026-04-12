@@ -20,7 +20,7 @@ export function CrmHeader({ email }: Props) {
   }
 
   return (
-    <header className="border-b border-ocean-100 bg-white shadow-sm">
+    <header className="sticky top-0 z-[200] border-b border-ocean-100 bg-white/95 shadow-sm backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-4">
         <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
           <Link
@@ -64,11 +64,11 @@ export function CrmHeader({ email }: Props) {
             |
           </span>
           <Link
-            href="/crm/primeiros-passos"
+            href="/crm/manual"
             className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"
-            title="Checklist técnica do painel"
+            title="Manual e base de conhecimento"
           >
-            Primeiros passos
+            Manual
           </Link>
         </nav>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">

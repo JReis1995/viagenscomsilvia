@@ -5,7 +5,6 @@ import Link from "next/link";
 
 import { saveSiteContentAction } from "@/app/(dashboard)/crm/actions";
 import { CrmVisualInlineEditProvider } from "@/components/crm/crm-inline-text";
-import { SiteEditorFieldsForTab } from "@/components/crm/crm-site-editor-fields";
 import { MarketingHomeSections } from "@/components/marketing/marketing-home-sections";
 import type { SiteContent } from "@/lib/site/site-content";
 import { pushSitePreviewDraftToStorage } from "@/lib/site/site-preview-storage";
@@ -19,8 +18,6 @@ type Props = {
 export function CrmSiteVisualEditor({ initial, posts }: Props) {
   const [data, setData] = useState<SiteContent>(initial);
   const [baseline, setBaseline] = useState<SiteContent>(initial);
-  const [registoOpen, setRegistoOpen] = useState(false);
-  const [pedidoCamposOpen, setPedidoCamposOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -117,6 +114,145 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
     });
   }
 
+  function patchTravelStories(
+    field: "eyebrow" | "title" | "subtitle",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      travelStories: { ...d.travelStories, [field]: value },
+    }));
+  }
+
+  function patchTravelStoryItem(
+    index: number,
+    field:
+      | "headline"
+      | "nightsBudgetLine"
+      | "blurb"
+      | "linkUrl"
+      | "linkLabel",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: d.travelStories.items.map((it, i) =>
+          i === index ? { ...it, [field]: value } : it,
+        ),
+      },
+    }));
+  }
+
+  function addTravelStoryItem() {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: [
+          ...d.travelStories.items,
+          {
+            headline: "",
+            nightsBudgetLine: "",
+            blurb: "",
+            linkUrl: "",
+            linkLabel: "",
+          },
+        ].slice(0, 12),
+      },
+    }));
+  }
+
+  function removeTravelStoryItem(index: number) {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: d.travelStories.items.filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function moveTravelStoryItem(index: number, dir: -1 | 1) {
+    setData((d) => {
+      const arr = [...d.travelStories.items];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return d;
+      const a = arr[index]!;
+      const b = arr[j]!;
+      arr[index] = b;
+      arr[j] = a;
+      return { ...d, travelStories: { ...d.travelStories, items: arr } };
+    });
+  }
+
+  function patchHowWeWork(
+    field:
+      | "eyebrow"
+      | "title"
+      | "subtitle"
+      | "firstContactTitle"
+      | "firstContactBody"
+      | "timingsTitle"
+      | "timingsBody",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      howWeWork: { ...d.howWeWork, [field]: value },
+    }));
+  }
+
+  function patchHowWeWorkStep(
+    index: number,
+    field: "title" | "body",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: d.howWeWork.steps.map((s, i) =>
+          i === index ? { ...s, [field]: value } : s,
+        ),
+      },
+    }));
+  }
+
+  function addHowWeWorkStep() {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: [...d.howWeWork.steps, { title: "", body: "" }].slice(0, 8),
+      },
+    }));
+  }
+
+  function removeHowWeWorkStep(index: number) {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: d.howWeWork.steps.filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function moveHowWeWorkStep(index: number, dir: -1 | 1) {
+    setData((d) => {
+      const arr = [...d.howWeWork.steps];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return d;
+      const a = arr[index]!;
+      const b = arr[j]!;
+      arr[index] = b;
+      arr[j] = a;
+      return { ...d, howWeWork: { ...d.howWeWork, steps: arr } };
+    });
+  }
+
   const patchFns = {
     patch,
     patchQuizSuccess,
@@ -125,6 +261,16 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
     addAlmaItem,
     removeAlmaItem,
     moveAlmaItem,
+    patchTravelStories,
+    patchTravelStoryItem,
+    addTravelStoryItem,
+    removeTravelStoryItem,
+    moveTravelStoryItem,
+    patchHowWeWork,
+    patchHowWeWorkStep,
+    addHowWeWorkStep,
+    removeHowWeWorkStep,
+    moveHowWeWorkStep,
   };
 
   function submit() {
@@ -153,40 +299,25 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
             uma caixa por cima, como num construtor de páginas.
           </p>
           <p className="mt-1 text-xs text-ocean-600">
-            Vês o resultado logo no rascunho. Usa{" "}
-            <strong className="font-medium text-ocean-800">
-              Pedido: prova social, URLs e obrigado
-            </strong>{" "}
-            para todos os campos do formulário e da página «Obrigado», ou a{" "}
+            Todo o texto do site edita-se na pré-visualização: no pedido,
+            carrega em «Começar» para abrir o formulário imersivo e clicar nas
+            perguntas e opções; no fim dessa secção há o bloco da página
+            «Obrigado». A{" "}
             <Link
               href="/crm/site?lista=1"
               className="font-medium underline underline-offset-2"
             >
               vista em lista
-            </Link>
-            .
+            </Link>{" "}
+            mantém os mesmos campos em separadores, se preferires.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPedidoCamposOpen(true)}
-            className="rounded-xl border border-ocean-200 bg-white px-4 py-2 text-sm font-medium text-ocean-800 shadow-sm transition hover:bg-ocean-50"
-          >
-            Pedido: prova social, URLs e obrigado
-          </button>
-          <button
-            type="button"
-            onClick={() => setRegistoOpen(true)}
-            className="rounded-xl border border-ocean-200 bg-white px-4 py-2 text-sm font-medium text-ocean-800 shadow-sm transition hover:bg-ocean-50"
-          >
-            Textos de «criar conta»
-          </button>
           <Link
             href="/crm/site?lista=1"
-            className="inline-flex items-center justify-center rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-ocean-600 underline decoration-ocean-300 underline-offset-2 hover:text-ocean-900"
+            className="inline-flex items-center justify-center rounded-xl border border-ocean-200 bg-white px-4 py-2 text-sm font-medium text-ocean-800 shadow-sm transition hover:bg-ocean-50"
           >
-            Vista em lista (URLs e formulário)
+            Vista em lista
           </Link>
         </div>
       </div>
@@ -233,10 +364,13 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
 
       <CrmVisualInlineEditProvider active>
         <section
-          className="relative left-1/2 mb-6 w-screen max-w-[100vw] -translate-x-1/2 overflow-x-hidden rounded-2xl border border-ocean-200/90 bg-sand shadow-inner"
+          className="relative left-1/2 mb-6 w-screen max-w-[100vw] -translate-x-1/2 rounded-2xl border border-ocean-200/90 bg-sand shadow-inner"
           aria-label="Pré-visualização editável da página inicial"
         >
-          <div className="border-b border-amber-200/70 bg-amber-50/95 px-3 py-2 text-center text-xs text-ocean-800">
+          <div
+            className="sticky top-0 z-[100] border-b border-amber-200/80 bg-amber-50/95 px-3 py-2 text-center text-xs text-ocean-800 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-amber-50/90"
+            role="note"
+          >
             <span className="font-semibold">Pré-visualização sempre visível</span>
             <span className="text-ocean-600">
               {" "}
@@ -245,7 +379,8 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
               público.
             </span>
           </div>
-          <div className="pb-24">
+          <div className="overflow-x-hidden">
+            <div className="pb-24">
             <MarketingHomeSections
               site={data}
               posts={posts}
@@ -278,89 +413,34 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
                 },
                 quiz: {
                   patchQuiz: (f, v) => patch("quiz", f, v),
+                  patchQuizSuccess: (f, v) => patchQuizSuccess(f, v),
+                },
+                stories: {
+                  patchHeading: (field, v) => patchTravelStories(field, v),
+                  patchItem: (index, field, v) =>
+                    patchTravelStoryItem(index, field, v),
+                  addItem: addTravelStoryItem,
+                  removeItem: removeTravelStoryItem,
+                  moveItem: moveTravelStoryItem,
+                },
+                process: {
+                  patch: (field, v) => patchHowWeWork(field, v),
+                  patchStep: (index, field, v) =>
+                    patchHowWeWorkStep(index, field, v),
+                  addStep: addHowWeWorkStep,
+                  removeStep: removeHowWeWorkStep,
+                  moveStep: moveHowWeWorkStep,
+                },
+                account: {
+                  patch: (field, v) =>
+                    patch("registerIncentive", field, v),
                 },
               }}
             />
+            </div>
           </div>
         </section>
       </CrmVisualInlineEditProvider>
-
-      {pedidoCamposOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar"
-            className="fixed inset-0 z-[380] bg-ocean-950/40 backdrop-blur-[1px]"
-            onClick={() => setPedidoCamposOpen(false)}
-          />
-          <div
-            className="fixed left-1/2 top-1/2 z-[400] w-[min(100vw-24px,560px)] max-h-[min(92vh,820px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border-2 border-ocean-300 bg-white p-5 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crm-pedido-campos-title"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2
-                id="crm-pedido-campos-title"
-                className="font-serif text-lg text-ocean-900"
-              >
-                Pedido de proposta — campos completos
-              </h2>
-              <button
-                type="button"
-                onClick={() => setPedidoCamposOpen(false)}
-                className="rounded-full border border-ocean-200 px-2 py-1 text-sm text-ocean-700 hover:bg-ocean-50"
-              >
-                Fechar
-              </button>
-            </div>
-            <p className="mb-4 text-xs text-ocean-600">
-              Textos do clima, prova social, URLs dos ícones (email / WhatsApp
-              / Instagram) e página «Obrigado». Fecha e usa{" "}
-              <strong className="font-medium text-ocean-800">Publicar</strong>{" "}
-              em baixo para enviar ao site público.
-            </p>
-            <SiteEditorFieldsForTab tab="quiz" data={data} {...patchFns} />
-          </div>
-        </>
-      ) : null}
-
-      {registoOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar"
-            className="fixed inset-0 z-[380] bg-ocean-950/40 backdrop-blur-[1px]"
-            onClick={() => setRegistoOpen(false)}
-          />
-          <div
-            className="fixed left-1/2 top-1/2 z-[400] w-[min(100vw-24px,440px)] max-h-[min(92vh,720px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border-2 border-ocean-300 bg-white p-5 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crm-registo-title"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2
-                id="crm-registo-title"
-                className="font-serif text-lg text-ocean-900"
-              >
-                Textos do ecrã «criar conta»
-              </h2>
-              <button
-                type="button"
-                onClick={() => setRegistoOpen(false)}
-                className="rounded-full border border-ocean-200 px-2 py-1 text-sm text-ocean-700 hover:bg-ocean-50"
-              >
-                Fechar
-              </button>
-            </div>
-            <p className="mb-4 text-xs text-ocean-600">
-              Estes textos não aparecem na página inicial; só no registo.
-            </p>
-            <SiteEditorFieldsForTab tab="registo" data={data} {...patchFns} />
-          </div>
-        </>
-      ) : null}
 
       <div className="fixed bottom-0 left-0 right-0 z-[210] border-t border-ocean-200 bg-white/95 px-4 py-3 shadow-[0_-6px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">

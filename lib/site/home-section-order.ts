@@ -2,8 +2,11 @@
 export const HOME_SECTION_IDS = [
   "hero",
   "feed",
+  "stories",
   "social",
   "consultora",
+  "process",
+  "account",
   "quiz",
 ] as const;
 
@@ -48,7 +51,10 @@ export function serializeHomeSectionOrder(order: HomeSectionId[]): string {
 export const HOME_SECTION_LABEL: Record<HomeSectionId, string> = {
   hero: "Topo",
   feed: "Inspirações",
+  stories: "Histórias rápidas",
   social: "Instagram",
   consultora: "Sobre + depoimentos",
+  process: "Como trabalhamos",
+  account: "Conta de cliente",
   quiz: "Pedido de proposta",
 };

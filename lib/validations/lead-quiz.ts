@@ -51,6 +51,20 @@ export const leadQuizSchema = z
       .trim()
       .min(1, "Indica uma faixa de orçamento.")
       .max(100),
+    janela_datas: z
+      .string()
+      .trim()
+      .min(2, "Indica uma janela de datas (mesmo aproximada).")
+      .max(400),
+    flexibilidade_datas: z.enum(
+      ["fixas", "mais_menos_semana", "totalmente_flexivel"],
+      {
+        message: "Escolhe o quanto podes flexibilizar as datas.",
+      },
+    ),
+    ja_tem_voos_hotel: z.enum(["nada", "so_voos", "so_hotel", "ambos"], {
+      message: "Indica se já tens voos ou hotel.",
+    }),
   })
   .merge(leadMarketingAttributionSchema);
 

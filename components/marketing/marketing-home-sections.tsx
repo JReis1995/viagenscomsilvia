@@ -3,11 +3,14 @@
 import type { ComponentProps } from "react";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
+import { ClientAccountHomeSection } from "@/components/marketing/client-account-home-section";
 import { ConsultoraSection } from "@/components/marketing/consultora-section";
 import { ExperienceFeed } from "@/components/marketing/experience-feed";
+import { HowWeWorkSection } from "@/components/marketing/how-we-work-section";
 import { InstagramSocialSection } from "@/components/marketing/instagram-social-section";
 import { LuxuryHero } from "@/components/marketing/luxury-hero";
 import { QuizSection } from "@/components/marketing/quiz-section";
+import { TravelStoriesSection } from "@/components/marketing/travel-stories-section";
 import type { PedidoOrcamentoPrefill } from "@/lib/marketing/pedido-orcamento";
 import {
   HOME_SECTION_LABEL,
@@ -24,6 +27,9 @@ export type MarketingHomeCrmSlots = {
   social?: ComponentProps<typeof InstagramSocialSection>["crm"];
   consultora?: ComponentProps<typeof ConsultoraSection>["crm"];
   quiz?: ComponentProps<typeof QuizSection>["crm"];
+  stories?: ComponentProps<typeof TravelStoriesSection>["crm"];
+  process?: ComponentProps<typeof HowWeWorkSection>["crm"];
+  account?: ComponentProps<typeof ClientAccountHomeSection>["crm"];
 };
 
 export type MarketingHomeSectionsProps = {
@@ -83,6 +89,8 @@ export function MarketingHomeSections({
     [order, applyOrder],
   );
 
+  const layoutEdit = Boolean(onLayoutOrderChange);
+
   const renderSection = (id: HomeSectionId) => {
     switch (id) {
       case "hero":
@@ -113,6 +121,14 @@ export function MarketingHomeSections({
             crm={crm?.feed}
           />
         );
+      case "stories":
+        return (
+          <TravelStoriesSection
+            copy={site.travelStories}
+            showPlaceholder={layoutEdit && !crm?.stories}
+            crm={crm?.stories}
+          />
+        );
       case "social":
         return (
           <InstagramSocialSection copy={site.socialFeed} crm={crm?.social} />
@@ -125,10 +141,27 @@ export function MarketingHomeSections({
             crm={crm?.consultora}
           />
         );
+      case "process":
+        return (
+          <HowWeWorkSection
+            copy={site.howWeWork}
+            showPlaceholder={layoutEdit && !crm?.process}
+            crm={crm?.process}
+          />
+        );
+      case "account":
+        return (
+          <ClientAccountHomeSection
+            copy={site.registerIncentive}
+            showPlaceholder={layoutEdit && !crm?.account}
+            crm={crm?.account}
+          />
+        );
       case "quiz":
         return (
           <QuizSection
             copy={site.quiz}
+            quizSuccess={site.quizSuccess}
             alma={site.almaTestimonials}
             prefill={prefill}
             quizKey={quizKey}
@@ -144,6 +177,9 @@ export function MarketingHomeSections({
     <>
       {order.map((id) => {
         const inner = renderSection(id);
+        if (!inner && !onLayoutOrderChange) {
+          return null;
+        }
         if (!onLayoutOrderChange) {
           return <div key={id}>{inner}</div>;
         }

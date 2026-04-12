@@ -213,5 +213,21 @@ export async function POST(
     );
   }
 
+  const { error: histError } = await db.from("lead_proposta_envios").insert({
+    lead_id: leadId,
+    created_at: enviadoEm,
+    valor_total: detalhes.valor_total,
+    titulo: detalhes.titulo,
+    destino: detalhes.destino,
+    datas: detalhes.datas,
+    snapshot: detalhes,
+  });
+  if (histError) {
+    console.error(
+      "[orcamento] lead_proposta_envios (opcional — executa sql/add_lead_proposta_envios.sql):",
+      histError.message,
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }

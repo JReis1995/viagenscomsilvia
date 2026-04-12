@@ -4,12 +4,17 @@ import { Resend } from "resend";
 import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import { buildWelcomeQuickLeadEmail } from "@/lib/email/welcome-lead-quick";
 import { buildWelcomeLeadEmail } from "@/lib/email/welcome-lead";
+import { hasOpenDuplicateLead } from "@/lib/crm/lead-duplicate";
 import { createPublicServerClient } from "@/lib/supabase/public-server";
+import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   leadQuickSchema,
   leadQuizSchema,
   type LeadMarketingAttribution,
 } from "@/lib/validations/lead-quiz";
+
+const DEFAULT_DUPLICATE_MSG =
+  "Já tens um pedido em aberto connosco — vamos tratar disso por esse contacto. Se for mesmo um pedido novo ou urgente, envia um email ou mensagem a dizer que é uma segunda intenção.";
 
 function attrColumns(m: LeadMarketingAttribution) {
   return {
@@ -57,6 +62,7 @@ export async function POST(request: Request) {
     (json as { pedido_rapido?: unknown }).pedido_rapido === true;
 
   const supabase = createPublicServerClient();
+  const srDup = tryCreateServiceRoleClient();
 
   if (isQuick) {
     const parsed = leadQuickSchema.safeParse(json);
@@ -66,6 +72,20 @@ export async function POST(request: Request) {
     const row = parsed.data;
     const attr = attrColumns(row);
     const tel = row.telemovel.trim();
+
+    if (srDup.ok) {
+      const dup = await hasOpenDuplicateLead(
+        srDup.client,
+        row.email,
+        tel.length > 0 ? tel : null,
+      );
+      if (dup) {
+        return NextResponse.json(
+          { error: DEFAULT_DUPLICATE_MSG, code: "duplicate_open_lead" },
+          { status: 409 },
+        );
+      }
+    }
 
     const { error: dbError } = await supabase.from("leads").insert({
       nome: row.nome,
@@ -129,6 +149,20 @@ export async function POST(request: Request) {
   const row = parsed.data;
   const attr = attrColumns(row);
 
+  if (srDup.ok) {
+    const dup = await hasOpenDuplicateLead(
+      srDup.client,
+      row.email,
+      row.telemovel,
+    );
+    if (dup) {
+      return NextResponse.json(
+        { error: DEFAULT_DUPLICATE_MSG, code: "duplicate_open_lead" },
+        { status: 409 },
+      );
+    }
+  }
+
   const { error: dbError } = await supabase.from("leads").insert({
     nome: row.nome,
     email: row.email,
@@ -138,6 +172,9 @@ export async function POST(request: Request) {
     companhia: row.companhia,
     destino_sonho: row.destino_sonho,
     orcamento_estimado: row.orcamento_estimado,
+    janela_datas: row.janela_datas,
+    flexibilidade_datas: row.flexibilidade_datas,
+    ja_tem_voos_hotel: row.ja_tem_voos_hotel,
     pedido_rapido: false,
     ...attr,
   });

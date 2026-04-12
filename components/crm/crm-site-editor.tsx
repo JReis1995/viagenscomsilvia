@@ -118,6 +118,145 @@ export function CrmSiteEditor({ initial }: Props) {
     });
   }
 
+  function patchTravelStories(
+    field: "eyebrow" | "title" | "subtitle",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      travelStories: { ...d.travelStories, [field]: value },
+    }));
+  }
+
+  function patchTravelStoryItem(
+    index: number,
+    field:
+      | "headline"
+      | "nightsBudgetLine"
+      | "blurb"
+      | "linkUrl"
+      | "linkLabel",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: d.travelStories.items.map((it, i) =>
+          i === index ? { ...it, [field]: value } : it,
+        ),
+      },
+    }));
+  }
+
+  function addTravelStoryItem() {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: [
+          ...d.travelStories.items,
+          {
+            headline: "",
+            nightsBudgetLine: "",
+            blurb: "",
+            linkUrl: "",
+            linkLabel: "",
+          },
+        ].slice(0, 12),
+      },
+    }));
+  }
+
+  function removeTravelStoryItem(index: number) {
+    setData((d) => ({
+      ...d,
+      travelStories: {
+        ...d.travelStories,
+        items: d.travelStories.items.filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function moveTravelStoryItem(index: number, dir: -1 | 1) {
+    setData((d) => {
+      const arr = [...d.travelStories.items];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return d;
+      const a = arr[index]!;
+      const b = arr[j]!;
+      arr[index] = b;
+      arr[j] = a;
+      return { ...d, travelStories: { ...d.travelStories, items: arr } };
+    });
+  }
+
+  function patchHowWeWork(
+    field:
+      | "eyebrow"
+      | "title"
+      | "subtitle"
+      | "firstContactTitle"
+      | "firstContactBody"
+      | "timingsTitle"
+      | "timingsBody",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      howWeWork: { ...d.howWeWork, [field]: value },
+    }));
+  }
+
+  function patchHowWeWorkStep(
+    index: number,
+    field: "title" | "body",
+    value: string,
+  ) {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: d.howWeWork.steps.map((s, i) =>
+          i === index ? { ...s, [field]: value } : s,
+        ),
+      },
+    }));
+  }
+
+  function addHowWeWorkStep() {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: [...d.howWeWork.steps, { title: "", body: "" }].slice(0, 8),
+      },
+    }));
+  }
+
+  function removeHowWeWorkStep(index: number) {
+    setData((d) => ({
+      ...d,
+      howWeWork: {
+        ...d.howWeWork,
+        steps: d.howWeWork.steps.filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function moveHowWeWorkStep(index: number, dir: -1 | 1) {
+    setData((d) => {
+      const arr = [...d.howWeWork.steps];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return d;
+      const a = arr[index]!;
+      const b = arr[j]!;
+      arr[index] = b;
+      arr[j] = a;
+      return { ...d, howWeWork: { ...d.howWeWork, steps: arr } };
+    });
+  }
+
   const patchFns = {
     patch,
     patchQuizSuccess,
@@ -126,6 +265,16 @@ export function CrmSiteEditor({ initial }: Props) {
     addAlmaItem,
     removeAlmaItem,
     moveAlmaItem,
+    patchTravelStories,
+    patchTravelStoryItem,
+    addTravelStoryItem,
+    removeTravelStoryItem,
+    moveTravelStoryItem,
+    patchHowWeWork,
+    patchHowWeWorkStep,
+    addHowWeWorkStep,
+    removeHowWeWorkStep,
+    moveHowWeWorkStep,
   };
 
   function submit() {
@@ -297,7 +446,7 @@ export function CrmSiteEditor({ initial }: Props) {
           <p className="order-3 text-center text-xs text-ocean-500 sm:order-1 sm:max-w-md sm:text-left">
             {activeTabDef.previewHash
               ? "O rascunho abre na zona que estás a editar (podes fazer scroll para ver o resto)."
-              : "O rascunho mostra a página inicial; esta secção só aparece no registo."}
+              : "O rascunho mostra a página inicial; esta secção não tem âncora na home ou só aparece noutras páginas."}
             {isDirty ? (
               <>
                 {" "}

@@ -35,6 +35,12 @@ export const LEAD_BOARD_COLUMNS = [
 
 export type LeadBoardStatus = (typeof LEAD_BOARD_COLUMNS)[number]["status"];
 
+/** Colunas visíveis no quadro de trabalho — fichas arquivadas ficam na secção «Arquivo». */
+export const LEAD_KANBAN_WORK_COLUMNS = LEAD_BOARD_COLUMNS.filter(
+  (c): c is (typeof LEAD_BOARD_COLUMNS)[number] & { status: Exclude<LeadBoardStatus, "Arquivado"> } =>
+    c.status !== "Arquivado",
+);
+
 const CANONICAL = new Set<string>(
   LEAD_BOARD_COLUMNS.map((c) => c.status),
 );
@@ -61,6 +67,28 @@ export function groupLeadsByBoardColumn(
   for (const lead of leads) {
     const key = boardColumnKeyForStatus(lead.status);
     map.get(key)!.push(lead);
+  }
+
+  return map;
+}
+
+/** Agrupa só leads que estão no quadro de trabalho (exclui «Arquivado»). */
+export function groupLeadsForWorkBoard(
+  leads: LeadBoardRow[],
+): Map<string, LeadBoardRow[]> {
+  const map = new Map<string, LeadBoardRow[]>();
+  for (const col of LEAD_KANBAN_WORK_COLUMNS) {
+    map.set(col.status, []);
+  }
+  map.set(OUTROS_COLUMN_KEY, []);
+
+  for (const lead of leads) {
+    if (lead.status === "Arquivado") continue;
+    const key = boardColumnKeyForStatus(lead.status);
+    if (key === "Arquivado") continue;
+    const bucket = map.get(key);
+    if (bucket) bucket.push(lead);
+    else map.get(OUTROS_COLUMN_KEY)!.push(lead);
   }
 
   return map;

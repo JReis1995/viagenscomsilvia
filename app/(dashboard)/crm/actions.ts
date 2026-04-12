@@ -6,7 +6,15 @@ import { Resend } from "resend";
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { notifyPromoSubscribers } from "@/lib/crm/notify-promo-subscribers";
 import { revalidatePublicHome } from "@/lib/next/revalidate-public-home";
+import { climaLabelForKey } from "@/lib/marketing/quiz-clima";
+import {
+  flexibilidadeLabel,
+  voosHotelLabel,
+} from "@/lib/marketing/quiz-qualificacao";
+import { hasOpenDuplicateLead } from "@/lib/crm/lead-duplicate";
 import { isCanonicalLeadStatus } from "@/lib/crm/lead-board";
+import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
+import { fetchSiteContent } from "@/lib/site/fetch-site-content";
 import { buildCrmConsultoraToLeadEmail } from "@/lib/email/crm-consultora-to-lead";
 import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import {
@@ -65,6 +73,142 @@ export async function updateLeadStatusAction(
     .eq("id", parsed.data.leadId);
 
   if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
+const createManualLeadSchema = z.object({
+  nome: z.string().trim().min(2, "Indica o nome (mínimo 2 caracteres).").max(120),
+  email: z.string().trim().email("Email inválido.").max(255),
+  telemovel: z.string().trim().max(30).optional().default(""),
+  destino_sonho: z.string().trim().max(300).optional().default(""),
+  notas_internas: z.string().trim().max(8000).optional().default(""),
+  auto_followup: z.boolean(),
+});
+
+/** Lead criada pela consultora (ex.: pedido por telefone ou WhatsApp, sem passar pelo site). Não envia email de boas-vindas. */
+export async function createManualLeadAction(
+  raw: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = createManualLeadSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fe = parsed.error.flatten().fieldErrors;
+    const first =
+      Object.values(fe).flat()[0] ?? "Dados inválidos.";
+    return { ok: false, error: first };
+  }
+
+  const {
+    nome,
+    email,
+    telemovel: teleRaw,
+    destino_sonho: destinoRaw,
+    notas_internas: notasRaw,
+    auto_followup,
+  } = parsed.data;
+
+  const telDigits = teleRaw.replace(/\D/g, "");
+  let telemovel: string | null = null;
+  if (telDigits.length > 0) {
+    if (telDigits.length < 9 || telDigits.length > 15) {
+      return {
+        ok: false,
+        error: "Telemóvel inválido — usa entre 9 e 15 dígitos ou deixa vazio.",
+      };
+    }
+    telemovel = teleRaw.trim();
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const dup = await hasOpenDuplicateLead(auth.db, email, telemovel);
+  if (dup) {
+    return {
+      ok: false,
+      error:
+        "Já existe uma lead em aberto com este email ou telemóvel. Abre a ficha no quadro ou move a lead anterior para um estado final antes de criar outra.",
+    };
+  }
+
+  const destino =
+    destinoRaw.trim() || "Pedido manual (registado no CRM)";
+  const notas = notasRaw.trim() || null;
+
+  const { error } = await auth.db.from("leads").insert({
+    nome: nome.trim(),
+    email: email.trim(),
+    telemovel,
+    status: "Nova Lead",
+    pedido_rapido: true,
+    destino_sonho: destino,
+    clima_preferido: null,
+    vibe: null,
+    companhia: null,
+    orcamento_estimado: null,
+    notas_internas: notas,
+    auto_followup,
+    utm_source: "crm",
+    utm_medium: "manual",
+    utm_campaign: null,
+    utm_content: null,
+    utm_term: null,
+    referrer: "Registo manual no painel CRM.",
+    landing_path: "/crm",
+  });
+
+  if (error) {
+    if (
+      error.message.includes("notas_internas") ||
+      error.message.includes("schema cache")
+    ) {
+      return {
+        ok: false,
+        error: `${error.message} Executa sql/add_lead_notas_internas.sql no Supabase.`,
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
+const markLeadMessagesReadSchema = z.object({
+  leadId: z.string().uuid(),
+});
+
+/** Marca emails inbound como vistos (remove o ponto vermelho no Kanban). */
+export async function markLeadCrmMessagesReadAction(
+  leadId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = markLeadMessagesReadSchema.safeParse({ leadId });
+  if (!parsed.success) {
+    return { ok: false, error: "Dados inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { error } = await auth.db
+    .from("leads")
+    .update({ has_unread_messages: false })
+    .eq("id", parsed.data.leadId);
+
+  if (error) {
+    if (error.message.includes("has_unread_messages")) {
+      return {
+        ok: false,
+        error: `${error.message} Executa sql/add_lead_has_unread_messages.sql no Supabase.`,
+      };
+    }
     return { ok: false, error: error.message };
   }
 
@@ -494,4 +638,134 @@ export async function deleteCrmPostAction(
   revalidatePath("/crm/publicacoes");
   revalidatePath("/mapa");
   return { ok: true };
+}
+
+function csvEscapeCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const s = String(value).replace(/\r?\n/g, " ").trim();
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+/** Exportação CSV para folhas ou integrações (Zapier/Make) — UTF-8 com BOM. */
+export async function exportLeadsCsvAction(): Promise<
+  { ok: true; csv: string; filename: string } | { ok: false; error: string }
+> {
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const site = await fetchSiteContent();
+  const { data, error } = await auth.db
+    .from("leads")
+    .select(
+      "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, notas_internas, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path",
+    )
+    .order("data_pedido", { ascending: false });
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  const { data: envioRows, error: envioErr } = await auth.db
+    .from("lead_proposta_envios")
+    .select("lead_id");
+  if (envioErr) {
+    console.error("[export csv] lead_proposta_envios:", envioErr.message);
+  }
+  const envioCountByLead = new Map<string, number>();
+  for (const row of envioRows ?? []) {
+    const id = row.lead_id as string;
+    envioCountByLead.set(id, (envioCountByLead.get(id) ?? 0) + 1);
+  }
+
+  const rows = data ?? [];
+  const header = [
+    "id",
+    "nome",
+    "email",
+    "telemovel",
+    "status",
+    "data_pedido",
+    "data_envio_orcamento",
+    "orcamento_valor_ultimo_envio",
+    "envios_orcamento_count",
+    "clima",
+    "vibe",
+    "companhia",
+    "destino_sonho",
+    "orcamento_estimado",
+    "janela_datas",
+    "flexibilidade_datas",
+    "flexibilidade_rotulo",
+    "ja_tem_voos_hotel",
+    "voos_hotel_rotulo",
+    "pedido_rapido",
+    "auto_followup",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_content",
+    "utm_term",
+    "referrer",
+    "landing_path",
+    "notas_internas",
+  ];
+
+  const lines = [header.join(",")];
+  for (const r of rows as Record<string, unknown>[]) {
+    const flexKey = r.flexibilidade_datas as string | null | undefined;
+    const voosKey = r.ja_tem_voos_hotel as string | null | undefined;
+    const climaKey = r.clima_preferido as string | null | undefined;
+    const det = parseDetalhesProposta(r.detalhes_proposta);
+    const valorUltimoEnvio = det?.valor_total?.trim() ?? "";
+    const leadId = r.id as string;
+    let nOrcamentos = envioCountByLead.get(leadId) ?? 0;
+    if (nOrcamentos === 0 && r.data_envio_orcamento) {
+      nOrcamentos = 1;
+    }
+    lines.push(
+      [
+        csvEscapeCell(r.id),
+        csvEscapeCell(r.nome),
+        csvEscapeCell(r.email),
+        csvEscapeCell(r.telemovel),
+        csvEscapeCell(r.status),
+        csvEscapeCell(r.data_pedido),
+        csvEscapeCell(r.data_envio_orcamento),
+        csvEscapeCell(valorUltimoEnvio),
+        csvEscapeCell(nOrcamentos),
+        csvEscapeCell(
+          climaKey?.trim()
+            ? climaLabelForKey(climaKey.trim(), site.quiz)
+            : "",
+        ),
+        csvEscapeCell(r.vibe),
+        csvEscapeCell(r.companhia),
+        csvEscapeCell(r.destino_sonho),
+        csvEscapeCell(r.orcamento_estimado),
+        csvEscapeCell(r.janela_datas),
+        csvEscapeCell(flexKey),
+        csvEscapeCell(flexibilidadeLabel(flexKey, site.quiz)),
+        csvEscapeCell(voosKey),
+        csvEscapeCell(voosHotelLabel(voosKey, site.quiz)),
+        csvEscapeCell(r.pedido_rapido === true ? "sim" : "nao"),
+        csvEscapeCell(r.auto_followup === true ? "sim" : "nao"),
+        csvEscapeCell(r.utm_source),
+        csvEscapeCell(r.utm_medium),
+        csvEscapeCell(r.utm_campaign),
+        csvEscapeCell(r.utm_content),
+        csvEscapeCell(r.utm_term),
+        csvEscapeCell(r.referrer),
+        csvEscapeCell(r.landing_path),
+        csvEscapeCell(r.notas_internas),
+      ].join(","),
+    );
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const filename = `leads-export-${stamp}.csv`;
+  const csv = `\uFEFF${lines.join("\r\n")}`;
+  return { ok: true, csv, filename };
 }

@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { CrmHomeTabs } from "@/components/crm/crm-home-tabs";
+import { CrmLeadsExportButton } from "@/components/crm/crm-leads-export-button";
 import { LeadsKanban } from "@/components/crm/leads-kanban";
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
+import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
+import type { LeadPropostaEnvioRow } from "@/lib/crm/lead-timeline";
+import { fetchSiteContent } from "@/lib/site/fetch-site-content";
+import { parseSlaHours } from "@/lib/crm/lead-sla";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
+import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
 import type { LeadBoardRow } from "@/types/lead";
 
 export const metadata: Metadata = {
@@ -24,6 +31,16 @@ export default async function CrmHomePage() {
     redirect("/login?next=/crm");
   }
 
+  const siteContent = await fetchSiteContent();
+  const slaGreenH = parseSlaHours(
+    siteContent.crm.slaGreenMaxHours,
+    Number.parseInt(DEFAULT_SITE_CONTENT.crm.slaGreenMaxHours, 10) || 24,
+  );
+  const slaYellowH = parseSlaHours(
+    siteContent.crm.slaYellowMaxHours,
+    Number.parseInt(DEFAULT_SITE_CONTENT.crm.slaYellowMaxHours, 10) || 48,
+  );
+
   const sr = tryCreateServiceRoleClient();
   let data: LeadBoardRow[] | null = null;
   let error: { message: string } | null = null;
@@ -32,7 +49,7 @@ export default async function CrmHomePage() {
     const res = await sr.client
       .from("leads")
       .select(
-        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path",
+        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages",
       )
       .order("data_pedido", { ascending: false });
     data = res.data as LeadBoardRow[] | null;
@@ -167,34 +184,122 @@ export default async function CrmHomePage() {
     });
   }
 
+  let propostaEnviosRows: {
+    id: string;
+    lead_id: string;
+    created_at: string;
+    valor_total: string;
+    titulo: string;
+    destino: string | null;
+    datas: string | null;
+    snapshot: unknown;
+  }[] = [];
+  if (sr.ok) {
+    const res = await sr.client
+      .from("lead_proposta_envios")
+      .select(
+        "id, lead_id, created_at, valor_total, titulo, destino, datas, snapshot",
+      )
+      .order("created_at", { ascending: true });
+    if (res.error) {
+      console.error("[crm] lead_proposta_envios:", res.error.message);
+    } else {
+      propostaEnviosRows = res.data ?? [];
+    }
+  }
+
+  const propostaEnviosByLeadId: Record<string, LeadPropostaEnvioRow[]> = {};
+  for (const row of propostaEnviosRows) {
+    const k = row.lead_id;
+    if (!propostaEnviosByLeadId[k]) propostaEnviosByLeadId[k] = [];
+    const snap = parseDetalhesProposta(row.snapshot);
+    propostaEnviosByLeadId[k].push({
+      id: row.id,
+      created_at: row.created_at,
+      valor_total: row.valor_total,
+      titulo: row.titulo,
+      destino: row.destino,
+      datas: row.datas,
+      inclui: snap?.inclui,
+    });
+  }
+
+  const quadroPainel =
+    leads.length === 0 ? (
+      <div className="rounded-2xl border border-ocean-100 bg-white/80 px-8 py-14 text-center shadow-md">
+        <p className="text-lg text-ocean-800">Ainda não há leads.</p>
+        <p className="mt-2 text-sm text-ocean-600">
+          Quando alguém enviar o pedido de orçamento no site, aparece aqui.
+        </p>
+      </div>
+    ) : (
+      <LeadsKanban
+        initialLeads={leads}
+        clientThreadsByLeadId={clientThreadsByLeadId}
+        clientDecisionsByLeadId={clientDecisionsByLeadId}
+        crmOutboundByLeadId={crmOutboundByLeadId}
+        propostaEnviosByLeadId={propostaEnviosByLeadId}
+        slaGreenMaxHours={slaGreenH}
+        slaYellowMaxHours={slaYellowH}
+        quizCopy={siteContent.quiz}
+      />
+    );
+
+  const arquivoPainel = (
+    <div className="rounded-2xl border border-ocean-100 bg-white p-6 shadow-lg md:p-8">
+      <h2 className="font-serif text-xl font-normal tracking-tight text-ocean-900 md:text-2xl">
+        Exportar CSV
+      </h2>
+      <p className="mt-3 max-w-2xl text-sm text-ocean-600 md:text-base">
+        {siteContent.crm.csvExportHint}
+      </p>
+      <div className="mt-5">
+        <CrmLeadsExportButton />
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="rounded-2xl bg-white p-6 shadow-lg md:p-8">
         <h1 className="font-serif text-2xl font-normal tracking-tight text-ocean-900 md:text-3xl">
-          Quadro de leads
+          Leads
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ocean-600 md:text-base">
-          Arrasta os cartões entre colunas ou altera o estado no menu. As novas
-          pedidos de proposta da página inicial entram em{" "}
-          <span className="font-medium text-ocean-800">Nova lead</span>.
+          No separador <span className="font-medium text-ocean-800">Quadro</span>{" "}
+          trabalhas as leads (com secções <span className="font-medium text-ocean-800">Trabalho</span>{" "}
+          e <span className="font-medium text-ocean-800">Arquivo</span> dentro do
+          painel). O separador{" "}
+          <span className="font-medium text-ocean-800">Exportar CSV</span> é só para
+          descarregar uma folha de cálculo.
         </p>
       </div>
 
-      {leads.length === 0 ? (
-        <div className="rounded-2xl border border-ocean-100 bg-white/80 px-8 py-14 text-center shadow-md">
-          <p className="text-lg text-ocean-800">Ainda não há leads.</p>
-          <p className="mt-2 text-sm text-ocean-600">
-            Quando alguém enviar o pedido de orçamento no site, aparece aqui.
-          </p>
-        </div>
-      ) : (
-        <LeadsKanban
-          initialLeads={leads}
-          clientThreadsByLeadId={clientThreadsByLeadId}
-          clientDecisionsByLeadId={clientDecisionsByLeadId}
-          crmOutboundByLeadId={crmOutboundByLeadId}
-        />
-      )}
+      <CrmHomeTabs
+        quadro={
+          <>
+            <div className="rounded-2xl border border-ocean-100 bg-white/90 p-4 shadow-sm md:p-5">
+              <p className="text-sm text-ocean-600">
+                Usa <span className="font-medium text-ocean-800">Nova lead manual</span>{" "}
+                para registar pedidos que não vieram do site. Em{" "}
+                <span className="font-medium text-ocean-800">Trabalho</span>, arrasta
+                entre colunas ou usa «Arquivar» para guardar fichas no separador{" "}
+                <span className="font-medium text-ocean-800">Arquivo</span> (fora do
+                quadro). Pedidos novos entram em{" "}
+                <span className="font-medium text-ocean-800">Nova lead</span>. A cor
+                da borda segue os tempos que definiste em Conteúdo do site → Quadro
+                de leads (
+                <span className="font-medium text-ocean-800">{slaGreenH}h</span> /{" "}
+                <span className="font-medium text-ocean-800">{slaYellowH}h</span>
+                ). Na vista <span className="font-medium text-ocean-800">Hoje</span>, o
+                estado aparece no topo de cada cartão.
+              </p>
+            </div>
+            {quadroPainel}
+          </>
+        }
+        arquivo={arquivoPainel}
+      />
     </div>
   );
 }

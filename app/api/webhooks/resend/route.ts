@@ -8,6 +8,20 @@ import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const dynamic = "force-dynamic";
 
+/** Eventos de envio (API Resend) — o CRM só processa `email.received` (Inbound). */
+const RESEND_SEND_PIPELINE_EVENTS = new Set([
+  "email.sent",
+  "email.scheduled",
+  "email.delivered",
+  "email.delivery_delayed",
+  "email.complained",
+  "email.bounced",
+  "email.opened",
+  "email.clicked",
+  "email.failed",
+  "email.suppressed",
+]);
+
 function stripHtmlToText(html: string): string {
   return html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
@@ -45,7 +59,12 @@ export async function POST(request: Request) {
   }
 
   if (event.type !== "email.received") {
-    console.info("[resend-webhook] ignored event type:", event.type);
+    if (!RESEND_SEND_PIPELINE_EVENTS.has(event.type)) {
+      console.info(
+        "[resend-webhook] evento ignorado (não é inbound):",
+        event.type,
+      );
+    }
     return NextResponse.json({ ok: true, ignored: event.type });
   }
 
@@ -139,6 +158,18 @@ export async function POST(request: Request) {
       console.error("[resend-webhook] insert:", insertError.message);
     }
     return NextResponse.json({ ok: false }, { status: 500 });
+  }
+
+  const { error: unreadError } = await sr.client
+    .from("leads")
+    .update({ has_unread_messages: true })
+    .eq("id", leadId);
+
+  if (unreadError) {
+    console.error(
+      "[resend-webhook] leads.has_unread_messages (executa sql/add_lead_has_unread_messages.sql se a coluna não existir):",
+      unreadError.message,
+    );
   }
 
   console.info("[resend-webhook] inbound saved leadId=", leadId, "from=", fromEmail);

@@ -17,12 +17,18 @@ export const CLIMA_FALLBACK_LABELS: Record<QuizClimaKey, string> = {
   misto: "Quero misturar tudo",
 };
 
-const FIELD_BY_KEY: Record<QuizClimaKey, keyof SiteContent["quiz"]> = {
+/** Campo no CMS para editar o rótulo de cada opção de clima (inline no quiz). */
+export const CLIMA_LABEL_QUIZ_FIELD: Record<
+  QuizClimaKey,
+  keyof SiteContent["quiz"]
+> = {
   neve: "climaLabelNeve",
   praia: "climaLabelPraia",
   cidade: "climaLabelCidade",
   misto: "climaLabelMisto",
 };
+
+const FIELD_BY_KEY = CLIMA_LABEL_QUIZ_FIELD;
 
 export function climaLabelForKey(key: string, copy: SiteContent["quiz"]): string {
   if (!isQuizClimaKey(key)) return key;

@@ -4,44 +4,42 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  markLeadCrmMessagesReadAction,
   registerLeadInboundEmailAction,
   updateLeadNotasInternasAction,
 } from "@/app/(dashboard)/crm/actions";
 import { LeadEmailComposeModal } from "@/components/crm/lead-email-compose-modal";
-import { LeadTimelineEntry } from "@/components/crm/lead-timeline-entry";
+import { LeadTimelineChat } from "@/components/crm/lead-timeline-chat";
+import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildLeadTimeline } from "@/lib/crm/lead-timeline";
 import type {
   ClientDecisionEntry,
   ClientThreadEntry,
   CrmThreadEmailEntry,
+  LeadPropostaEnvioRow,
 } from "@/lib/crm/lead-timeline";
 import { climaLabelForKey } from "@/lib/marketing/quiz-clima";
+import {
+  flexibilidadeLabel,
+  voosHotelLabel,
+} from "@/lib/marketing/quiz-qualificacao";
 import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
+import type { SiteContent } from "@/lib/site/site-content";
 import type { LeadBoardRow } from "@/types/lead";
 
 type Props = {
   lead: LeadBoardRow;
+  /** Rótulos do quiz (CMS); por omissão usa o texto publicado no site. */
+  quizCopy?: SiteContent["quiz"];
   onClose: () => void;
   clientThread?: ClientThreadEntry[];
   clientDecisions?: ClientDecisionEntry[];
   crmOutboundEmails?: CrmThreadEmailEntry[];
+  propostaEnvios?: LeadPropostaEnvioRow[];
   onNotasSaved?: (leadId: string, notas: string | null) => void;
+  /** Após marcar mensagens CRM como vistas (remove o alerta no quadro). */
+  onMessagesViewed?: (leadId: string) => void;
 };
-
-function formatTimelineWhen(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-PT", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function formatPedidoDate(iso: string): string {
   try {
@@ -65,11 +63,14 @@ function displayText(value: string | null | undefined): string {
 
 export function LeadQuizDetailModal({
   lead,
+  quizCopy = DEFAULT_SITE_CONTENT.quiz,
   onClose,
   clientThread = [],
   clientDecisions = [],
   crmOutboundEmails = [],
+  propostaEnvios = [],
   onNotasSaved,
+  onMessagesViewed,
 }: Props) {
   const router = useRouter();
   const [notas, setNotas] = useState(lead.notas_internas?.trim() ?? "");
@@ -99,6 +100,19 @@ export function LeadQuizDetailModal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await markLeadCrmMessagesReadAction(lead.id);
+      if (!cancelled && res.ok) {
+        onMessagesViewed?.(lead.id);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lead.id, onMessagesViewed]);
+
   const timeline = useMemo(
     () =>
       buildLeadTimeline(
@@ -106,9 +120,43 @@ export function LeadQuizDetailModal({
         clientThread,
         clientDecisions,
         crmOutboundEmails,
+        propostaEnvios,
       ),
-    [lead, clientThread, clientDecisions, crmOutboundEmails],
+    [lead, clientThread, clientDecisions, crmOutboundEmails, propostaEnvios],
   );
+
+  const orcamentosResumoLista = useMemo(() => {
+    if (propostaEnvios.length > 0) {
+      return [...propostaEnvios].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    if (!lead.data_envio_orcamento) return [];
+    const d = parseDetalhesProposta(lead.detalhes_proposta);
+    if (d) {
+      return [
+        {
+          created_at: lead.data_envio_orcamento,
+          valor_total: d.valor_total,
+          titulo: d.titulo,
+          destino: d.destino,
+          datas: d.datas,
+          inclui: d.inclui,
+        } satisfies LeadPropostaEnvioRow,
+      ];
+    }
+    return [
+      {
+        created_at: lead.data_envio_orcamento,
+        valor_total: "—",
+        titulo: "Orçamento enviado (sem detalhes na lead)",
+        destino: null,
+        datas: null,
+        inclui: [],
+      } satisfies LeadPropostaEnvioRow,
+    ];
+  }, [propostaEnvios, lead.data_envio_orcamento, lead.detalhes_proposta]);
 
   function saveInboundReply() {
     setInboundMsg(null);
@@ -150,7 +198,7 @@ export function LeadQuizDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/40 p-0 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ocean-900/45 sm:items-center sm:p-3 md:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quiz-detail-title"
@@ -161,7 +209,7 @@ export function LeadQuizDetailModal({
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ocean-100 border-b-0 bg-white shadow-xl sm:max-h-[min(88vh,720px)] sm:rounded-2xl sm:border-b">
+      <div className="relative z-10 flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-2xl sm:max-h-[min(92dvh,920px)] sm:rounded-2xl">
         <div className="shrink-0 border-b border-ocean-100 bg-sand/30 px-5 py-4">
           <h2
             id="quiz-detail-title"
@@ -198,7 +246,7 @@ export function LeadQuizDetailModal({
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-4">
           <section className="rounded-xl border border-ocean-200/80 bg-ocean-50/40 p-3">
             <h3 className="text-[10px] font-semibold uppercase tracking-wider text-ocean-600">
               Notas internas (só equipa)
@@ -243,11 +291,12 @@ export function LeadQuizDetailModal({
               Resposta da lead por email
             </h3>
             <p className="mt-1 text-xs text-ocean-500">
-              Se ela respondeu na tua caixa (Gmail, etc.) e isso não aparece
-              aqui, cola o assunto e o texto — fica como{" "}
+              Se ela respondeu na tua caixa de email e isso não aparece aqui,
+              cola o assunto e o texto — fica como{" "}
               <span className="font-medium text-ocean-700">Recebido</span> no
-              histórico. (Automático: Resend Inbound + webhook — ver Primeiros
-              passos.)
+              histórico. Se o teu email estiver ligado ao sistema de envio do
+              site, as respostas podem passar a aparecer sozinhas; caso
+              contrário, este registo manual resolve.
             </p>
             <input
               type="text"
@@ -293,22 +342,98 @@ export function LeadQuizDetailModal({
           </section>
 
           <section className="mt-6">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
-              Histórico (ordem cronológica)
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ocean-800">
+              Orçamentos enviados ao cliente
             </h3>
-            <ul className="mt-3 space-y-4 border-l-2 border-ocean-200 pl-4">
-              {timeline.length === 0 ? (
-                <li className="text-sm text-ocean-500">Sem eventos.</li>
-              ) : (
-                timeline.map((row, i) => (
-                  <LeadTimelineEntry
-                    key={`${row.at}-${row.kind}-${i}`}
-                    row={row}
-                    formatWhen={formatTimelineWhen}
-                  />
-                ))
-              )}
-            </ul>
+            <p className="mt-1 text-xs text-ocean-600">
+              Valor, lista incluída no PDF e descarga da versão correspondente.
+            </p>
+            {orcamentosResumoLista.length === 0 ? (
+              <p className="mt-3 text-sm text-ocean-600">
+                Ainda não foi enviada proposta em PDF por email a partir do CRM.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-4">
+                {orcamentosResumoLista.map((ev, i) => {
+                  const pdfHref = ev.id
+                    ? `/api/crm/leads/${lead.id}/proposta-pdf?envioId=${encodeURIComponent(ev.id)}`
+                    : `/api/crm/leads/${lead.id}/proposta-pdf?legacy=1`;
+                  const incluiLines =
+                    ev.inclui?.map((s) => s.trim()).filter(Boolean) ?? [];
+                  const podePdf =
+                    Boolean(ev.id) ||
+                    Boolean(parseDetalhesProposta(lead.detalhes_proposta));
+                  return (
+                    <li
+                      key={ev.id ?? `legacy-${ev.created_at}-${i}`}
+                      className="rounded-xl border-2 border-ocean-200 bg-ocean-50/95 px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-lg font-bold leading-tight text-ocean-950">
+                            {ev.valor_total.trim()}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-ocean-900">
+                            {ev.titulo}
+                          </p>
+                          <p className="mt-1 text-xs text-ocean-700">
+                            {formatPedidoDate(ev.created_at)}
+                          </p>
+                          {ev.destino?.trim() || ev.datas?.trim() ? (
+                            <p className="mt-2 text-sm text-ocean-800">
+                              {[ev.destino?.trim(), ev.datas?.trim()]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          ) : null}
+                        </div>
+                        {podePdf ? (
+                          <a
+                            href={pdfHref}
+                            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-ocean-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-ocean-800"
+                            download
+                          >
+                            Descarregar PDF
+                          </a>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 border-t border-ocean-200/80 pt-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-ocean-800">
+                          O que inclui (uma linha por item)
+                        </p>
+                        {incluiLines.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-snug text-ocean-950">
+                            {incluiLines.map((line, j) => (
+                              <li key={j}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-xs text-ocean-600">
+                            Sem lista guardada nesta versão. Se for envio antigo
+                            antes do histórico, usa o PDF legado (última proposta
+                            na lead) ou reenvia a partir do CRM.
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {propostaEnvios.length > 1 ? (
+              <p className="mt-3 text-[11px] text-ocean-600">
+                Cada envio fica com o seu PDF — o mais recente aparece primeiro.
+              </p>
+            ) : null}
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+              Conversação / histórico
+            </h3>
+            <div className="mt-3 rounded-xl bg-ocean-50/40 px-2 py-3 sm:px-3">
+              <LeadTimelineChat rows={timeline} />
+            </div>
           </section>
 
           <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
@@ -346,10 +471,7 @@ export function LeadQuizDetailModal({
               </dt>
               <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
                 {lead.clima_preferido?.trim()
-                  ? climaLabelForKey(
-                      lead.clima_preferido.trim(),
-                      DEFAULT_SITE_CONTENT.quiz,
-                    )
+                  ? climaLabelForKey(lead.clima_preferido.trim(), quizCopy)
                   : "—"}
               </dd>
             </div>
@@ -383,6 +505,30 @@ export function LeadQuizDetailModal({
               </dt>
               <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
                 {displayText(lead.orcamento_estimado)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+                Janela de datas
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
+                {displayText(lead.janela_datas)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+                Flexibilidade de datas
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
+                {flexibilidadeLabel(lead.flexibilidade_datas, quizCopy)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+                Voos / hotel já reservados
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
+                {voosHotelLabel(lead.ja_tem_voos_hotel, quizCopy)}
               </dd>
             </div>
             <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">

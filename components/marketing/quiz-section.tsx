@@ -15,17 +15,23 @@ import type { SiteContent } from "@/lib/site/site-content";
 
 type Props = {
   copy: SiteContent["quiz"];
+  quizSuccess: SiteContent["quizSuccess"];
   alma?: SiteContent["almaTestimonials"];
   prefill?: PedidoOrcamentoPrefill | null;
   /** Força remontagem quando mudam os query params (ex.: clique vindo de uma publicação). */
   quizKey?: string;
   crm?: {
     patchQuiz: (field: keyof SiteContent["quiz"], value: string) => void;
+    patchQuizSuccess: (
+      field: keyof SiteContent["quizSuccess"],
+      value: string,
+    ) => void;
   };
 };
 
 export function QuizSection({
   copy,
+  quizSuccess,
   alma,
   prefill = null,
   quizKey = "default",
@@ -266,19 +272,180 @@ export function QuizSection({
           </div>
 
           {crm ? (
-            <p className="mt-4 text-center text-xs text-ocean-500">
-              O formulário em passos fica pausado aqui. Para todos os campos do
-              pedido (clima, prova social, URLs, página «Obrigado»), usa o botão
-              fixo{" "}
-              <strong className="font-medium text-ocean-700">
-                Pedido: prova social, URLs e obrigado
-              </strong>{" "}
-              no topo, ou a{" "}
-              <a href="/crm/site?lista=1" className="font-medium underline">
-                vista em lista
-              </a>{" "}
-              → separador «Pedido de proposta».
-            </p>
+            <div className="mx-auto mt-14 max-w-3xl space-y-6 rounded-2xl border border-dashed border-ocean-300 bg-ocean-50/50 px-5 py-6 text-left md:px-8">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ocean-600">
+                Abre o formulário (Começar) para editar os passos imersivos a
+                clicar · página «Obrigado» abaixo
+              </p>
+              <div>
+                <p className="text-xs font-medium text-ocean-700">
+                  Mensagem se já houver pedido em aberto (mesmo contacto)
+                </p>
+                <p className="mt-2 text-sm text-ocean-800">
+                  <CrmInlineText
+                    label="Mensagem pedido duplicado"
+                    multiline
+                    value={copy.duplicateOpenLeadMessage}
+                    onApply={(v) => crm.patchQuiz("duplicateOpenLeadMessage", v)}
+                  />
+                </p>
+              </div>
+              <p className="border-t border-ocean-200 pt-4 text-xs font-semibold uppercase tracking-wide text-ocean-600">
+                Página «Obrigado» (usa {"{nome}"} na saudação se quiseres)
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-xs text-ocean-600">
+                  Saudação
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — saudação"
+                      value={quizSuccess.greetingLine}
+                      onApply={(v) => crm.patchQuizSuccess("greetingLine", v)}
+                    />
+                  </span>
+                </label>
+                <label className="block text-xs text-ocean-600">
+                  Título principal
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — título"
+                      value={quizSuccess.headline}
+                      onApply={(v) => crm.patchQuizSuccess("headline", v)}
+                    />
+                  </span>
+                </label>
+              </div>
+              <label className="block text-xs text-ocean-600">
+                Texto do corpo
+                <span className="mt-1 block text-sm text-ocean-900">
+                  <CrmInlineText
+                    label="Obrigado — corpo"
+                    multiline
+                    value={quizSuccess.body}
+                    onApply={(v) => crm.patchQuizSuccess("body", v)}
+                  />
+                </span>
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-xs text-ocean-600">
+                  Título «próximos passos»
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — título próximos passos"
+                      value={quizSuccess.nextStepsTitle}
+                      onApply={(v) => crm.patchQuizSuccess("nextStepsTitle", v)}
+                    />
+                  </span>
+                </label>
+                <label className="block text-xs text-ocean-600">
+                  Texto próximos passos
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — texto próximos passos"
+                      multiline
+                      value={quizSuccess.nextStepsBody}
+                      onApply={(v) => crm.patchQuizSuccess("nextStepsBody", v)}
+                    />
+                  </span>
+                </label>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block text-xs text-ocean-600">
+                  Rótulo WhatsApp
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — WhatsApp"
+                      value={quizSuccess.whatsappCtaLabel}
+                      onApply={(v) =>
+                        crm.patchQuizSuccess("whatsappCtaLabel", v)
+                      }
+                    />
+                  </span>
+                </label>
+                <label className="block text-xs text-ocean-600">
+                  Rótulo Calendly
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — Calendly"
+                      value={quizSuccess.calendlyCtaLabel}
+                      onApply={(v) =>
+                        crm.patchQuizSuccess("calendlyCtaLabel", v)
+                      }
+                    />
+                  </span>
+                </label>
+                <label className="block text-xs text-ocean-600">
+                  Rótulo criar conta
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — criar conta"
+                      value={quizSuccess.criarContaCtaLabel}
+                      onApply={(v) =>
+                        crm.patchQuizSuccess("criarContaCtaLabel", v)
+                      }
+                    />
+                  </span>
+                </label>
+              </div>
+              <label className="block text-xs text-ocean-600">
+                Texto Spotify
+                <span className="mt-1 block text-sm text-ocean-900">
+                  <CrmInlineText
+                    label="Obrigado — Spotify"
+                    multiline
+                    value={quizSuccess.spotifyLabel}
+                    onApply={(v) => crm.patchQuizSuccess("spotifyLabel", v)}
+                  />
+                </span>
+              </label>
+              <label className="block text-xs text-ocean-600">
+                URL Spotify
+                <span className="mt-1 block break-all text-sm text-ocean-900">
+                  <CrmInlineText
+                    label="Obrigado — URL Spotify"
+                    value={quizSuccess.spotifyUrl}
+                    onApply={(v) => crm.patchQuizSuccess("spotifyUrl", v)}
+                  />
+                </span>
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-xs text-ocean-600">
+                  Botão voltar à home
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — voltar home"
+                      value={quizSuccess.backHomeLabel}
+                      onApply={(v) => crm.patchQuizSuccess("backHomeLabel", v)}
+                    />
+                  </span>
+                </label>
+                <label className="block text-xs text-ocean-600">
+                  Nota email confirmação
+                  <span className="mt-1 block text-sm text-ocean-900">
+                    <CrmInlineText
+                      label="Obrigado — email confirmado"
+                      multiline
+                      value={quizSuccess.emailConfirmLine}
+                      onApply={(v) =>
+                        crm.patchQuizSuccess("emailConfirmLine", v)
+                      }
+                    />
+                  </span>
+                </label>
+              </div>
+              <label className="block text-xs text-ocean-600">
+                URL imagem de fundo do cartão (opcional)
+                <span className="mt-1 block break-all text-sm text-ocean-900">
+                  <CrmInlineText
+                    label="Obrigado — imagem fundo"
+                    value={quizSuccess.cardBackgroundUrl}
+                    onApply={(v) =>
+                      crm.patchQuizSuccess("cardBackgroundUrl", v)
+                    }
+                  />
+                </span>
+              </label>
+            </div>
           ) : null}
         </div>
       </section>

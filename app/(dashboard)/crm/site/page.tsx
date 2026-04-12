@@ -65,10 +65,11 @@ export default async function CrmSiteContentPage({ searchParams }: PageProps) {
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ocean-600 md:text-base">
           {listMode ? (
             <>
-              Modo em separadores, útil para rever tudo em sequência. À direita
-              (ou em baixo no telemóvel) tens a pré-visualização ao vivo; cada
-              campo inclui texto de ajuda quando está disponível. A vista
-              recomendada para edição fina é{" "}
+              Modo em separadores (inclui «Histórias rápidas» e «Como
+              trabalhamos»), útil para rever tudo em sequência. À direita (ou em
+              baixo no telemóvel) tens a pré-visualização ao vivo; cada campo
+              inclui texto de ajuda quando está disponível. A vista recomendada
+              para edição fina é{" "}
               <Link href="/crm/site" className="font-medium underline">
                 clicar no rascunho
               </Link>
@@ -81,8 +82,16 @@ export default async function CrmSiteContentPage({ searchParams }: PageProps) {
           ) : (
             <>
               Clica nas frases do rascunho para editar (abre uma caixa por
-              cima). A pré-visualização fica sempre visível em baixo; até
-              publicares, é só rascunho. Quando estiveres pronta,{" "}
+              cima), incluindo histórias rápidas, como trabalhamos e o bloco da
+              conta — faz scroll na pré-visualização. O mesmo conteúdo está na{" "}
+              <Link
+                href="/crm/site?lista=1"
+                className="font-medium text-ocean-700 underline"
+              >
+                vista em lista
+              </Link>
+              . A pré-visualização fica sempre visível em baixo; até publicares,
+              é só rascunho. Quando estiveres pronta,{" "}
               <strong className="font-medium text-ocean-800">
                 Publicar no site
               </strong>{" "}
@@ -90,14 +99,7 @@ export default async function CrmSiteContentPage({ searchParams }: PageProps) {
               <Link href="/crm/publicacoes" className="font-medium underline">
                 Publicações
               </Link>
-              .{" "}
-              <Link
-                href="/crm/site?lista=1"
-                className="font-medium text-ocean-700 underline"
-              >
-                Vista em lista
-              </Link>{" "}
-              (pré-visualização ao lado + ajuda por campo).
+              .
             </>
           )}
         </p>

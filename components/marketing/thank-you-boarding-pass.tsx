@@ -155,6 +155,12 @@ export function ThankYouBoardingPass({
             </div>
           )}
 
+          {registerIncentive.thankYouAccountIntro.trim() ? (
+            <p className="mt-8 text-sm leading-relaxed text-ocean-700">
+              {registerIncentive.thankYouAccountIntro}
+            </p>
+          ) : null}
+
           <div className="mt-8 rounded-xl border border-ocean-100 bg-ocean-50/50 px-4 py-4 text-left">
             <p className="font-medium text-ocean-900">
               {registerIncentive.headline}

@@ -1,3 +1,4 @@
+import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { climaLabelForKey } from "@/lib/marketing/quiz-clima";
 import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
 import type { LeadBoardRow } from "@/types/lead";
@@ -40,6 +41,43 @@ export type LeadTimelineRow = {
   kind: LeadTimelineKind;
 };
 
+/** Registos em `lead_proposta_envios` (um por cada envio de PDF). */
+export type LeadPropostaEnvioRow = {
+  id?: string;
+  created_at: string;
+  valor_total: string;
+  titulo: string;
+  destino?: string | null;
+  datas?: string | null;
+  /** Itens do PDF (uma linha por elemento do quiz). */
+  inclui?: string[];
+};
+
+type OrcamentoResumo = {
+  valor_total: string;
+  titulo: string;
+  destino?: string | null;
+  datas?: string | null;
+  inclui?: string[];
+};
+
+export function buildOrcamentoResumoBody(ev: OrcamentoResumo): string {
+  const lines: string[] = [];
+  lines.push(`Valor: ${ev.valor_total.trim()}`);
+  if (ev.titulo?.trim()) lines.push(`Título: ${ev.titulo.trim()}`);
+  if (ev.destino?.trim()) lines.push(`Destino: ${ev.destino.trim()}`);
+  if (ev.datas?.trim()) lines.push(`Datas: ${ev.datas.trim()}`);
+  if (ev.inclui?.length) {
+    lines.push("");
+    lines.push("O que inclui:");
+    for (const raw of ev.inclui) {
+      const t = raw.trim();
+      if (t) lines.push(`· ${t}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 export function decisionLabelPt(d: string): string {
   if (d === "approved") return "Orçamento aprovado";
   if (d === "changes_requested") return "Pediu alterações";
@@ -52,9 +90,19 @@ function line(label: string, value: string | null | undefined): string | null {
   return `${label}: ${v}`;
 }
 
+function isCrmManualLead(lead: LeadBoardRow): boolean {
+  return (
+    lead.utm_medium?.trim().toLowerCase() === "manual" &&
+    lead.utm_source?.trim().toLowerCase() === "crm"
+  );
+}
+
 /** Resumo legível do que veio no formulário (histórico “recebido”). */
 export function buildSitePedidoTimelineBody(lead: LeadBoardRow): string {
   const lines: string[] = [];
+  if (isCrmManualLead(lead)) {
+    lines.push("Origem: criada pela consultora no painel (sem formulário no site).");
+  }
   lines.push(
     lead.pedido_rapido
       ? "Tipo: pedido rápido (só destino)"
@@ -87,21 +135,56 @@ export function buildLeadTimeline(
   thread: ClientThreadEntry[] | undefined,
   decisions: ClientDecisionEntry[] | undefined,
   crmEmails?: CrmThreadEmailEntry[] | undefined,
+  propostaEnvios?: LeadPropostaEnvioRow[] | undefined,
 ): LeadTimelineRow[] {
   const rows: LeadTimelineRow[] = [];
 
   rows.push({
     at: lead.data_pedido,
-    title: "Novo pedido recebido (site)",
+    title: isCrmManualLead(lead)
+      ? "Pedido registado no CRM (manual)"
+      : "Novo pedido recebido (site)",
     body: buildSitePedidoTimelineBody(lead),
     direction: "received",
     kind: "pedido",
   });
 
-  if (lead.data_envio_orcamento) {
+  if (propostaEnvios && propostaEnvios.length > 0) {
+    const sorted = [...propostaEnvios].sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    for (const ev of sorted) {
+      rows.push({
+        at: ev.created_at,
+        title: `Orçamento enviado · ${ev.valor_total.trim()}`,
+        body: buildOrcamentoResumoBody({
+          valor_total: ev.valor_total,
+          titulo: ev.titulo,
+          destino: ev.destino,
+          datas: ev.datas,
+          inclui: ev.inclui,
+        }),
+        direction: "sent",
+        kind: "orcamento_pdf",
+      });
+    }
+  } else if (lead.data_envio_orcamento) {
+    const d = parseDetalhesProposta(lead.detalhes_proposta);
     rows.push({
       at: lead.data_envio_orcamento,
-      title: "Orçamento em PDF enviado (CRM)",
+      title: d
+        ? `Orçamento enviado · ${d.valor_total.trim()}`
+        : "Orçamento em PDF enviado (CRM)",
+      body: d
+        ? buildOrcamentoResumoBody({
+            valor_total: d.valor_total,
+            titulo: d.titulo,
+            destino: d.destino,
+            datas: d.datas,
+            inclui: d.inclui,
+          })
+        : undefined,
       direction: "sent",
       kind: "orcamento_pdf",
     });

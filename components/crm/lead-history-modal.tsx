@@ -2,36 +2,26 @@
 
 import { useEffect, useMemo } from "react";
 
-import { LeadTimelineEntry } from "@/components/crm/lead-timeline-entry";
+import { markLeadCrmMessagesReadAction } from "@/app/(dashboard)/crm/actions";
+import { LeadTimelineChat } from "@/components/crm/lead-timeline-chat";
 import {
   buildLeadTimeline,
   type ClientDecisionEntry,
   type ClientThreadEntry,
   type CrmThreadEmailEntry,
+  type LeadPropostaEnvioRow,
 } from "@/lib/crm/lead-timeline";
 import type { LeadBoardRow } from "@/types/lead";
-
-function formatWhen(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-PT", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 type Props = {
   lead: LeadBoardRow;
   clientThread: ClientThreadEntry[];
   clientDecisions: ClientDecisionEntry[];
   crmOutboundEmails: CrmThreadEmailEntry[];
+  propostaEnvios?: LeadPropostaEnvioRow[];
   onClose: () => void;
+  /** Chamado após gravar `has_unread_messages = false` com sucesso. */
+  onMessagesViewed?: (leadId: string) => void;
 };
 
 export function LeadHistoryModal({
@@ -39,7 +29,9 @@ export function LeadHistoryModal({
   clientThread,
   clientDecisions,
   crmOutboundEmails,
+  propostaEnvios = [],
   onClose,
+  onMessagesViewed,
 }: Props) {
   const rows = useMemo(
     () =>
@@ -48,9 +40,23 @@ export function LeadHistoryModal({
         clientThread,
         clientDecisions,
         crmOutboundEmails,
+        propostaEnvios,
       ),
-    [lead, clientThread, clientDecisions, crmOutboundEmails],
+    [lead, clientThread, clientDecisions, crmOutboundEmails, propostaEnvios],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await markLeadCrmMessagesReadAction(lead.id);
+      if (!cancelled && res.ok) {
+        onMessagesViewed?.(lead.id);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lead.id, onMessagesViewed]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -65,7 +71,7 @@ export function LeadHistoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[55] flex items-end justify-center bg-ocean-950/50 p-0 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[55] flex items-end justify-center bg-ocean-950/50 sm:items-center sm:p-3 md:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="lead-history-title"
@@ -76,7 +82,7 @@ export function LeadHistoryModal({
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[min(88dvh,620px)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
+      <div className="relative z-10 flex max-h-[100dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-2xl sm:max-h-[min(92dvh,900px)] sm:rounded-2xl">
         <div className="shrink-0 border-b border-ocean-100 px-4 py-3 sm:px-5">
           <h2
             id="lead-history-title"
@@ -86,19 +92,9 @@ export function LeadHistoryModal({
           </h2>
           <p className="mt-0.5 text-sm text-ocean-600">{lead.nome}</p>
         </div>
-        <ul className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 pl-6 sm:px-5 sm:pl-7">
-          {rows.length === 0 ? (
-            <li className="text-sm text-ocean-500">Sem eventos.</li>
-          ) : (
-            rows.map((row, i) => (
-              <LeadTimelineEntry
-                key={`${row.at}-${row.kind}-${i}`}
-                row={row}
-                formatWhen={formatWhen}
-              />
-            ))
-          )}
-        </ul>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+          <LeadTimelineChat rows={rows} />
+        </div>
         <div className="shrink-0 border-t border-ocean-100 px-4 py-3 sm:px-5">
           <button
             type="button"

@@ -19,6 +19,12 @@ export type LeadBoardRow = {
   companhia: string | null;
   destino_sonho: string | null;
   orcamento_estimado: string | null;
+  /** Texto livre (ex.: «10–20 ago»). */
+  janela_datas?: string | null;
+  /** Chaves: fixas | mais_menos_semana | totalmente_flexivel */
+  flexibilidade_datas?: string | null;
+  /** Chaves: nada | so_voos | so_hotel | ambos */
+  ja_tem_voos_hotel?: string | null;
   auto_followup: boolean;
   pedido_rapido: boolean;
   utm_source: string | null;
@@ -28,4 +34,6 @@ export type LeadBoardRow = {
   utm_term: string | null;
   referrer: string | null;
   landing_path: string | null;
+  /** Email inbound novo (webhook Resend) — ver sql/add_lead_has_unread_messages.sql */
+  has_unread_messages?: boolean | null;
 };

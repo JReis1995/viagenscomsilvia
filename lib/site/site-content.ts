@@ -88,6 +88,62 @@ const siteContentSchema = z.object({
       falarComSilviaUrl: z.string().max(2048),
       /** Perfil Instagram (mensagens); ou usa NEXT_PUBLIC_CONTACT_INSTAGRAM_URL. */
       falarComSilviaInstagramUrl: z.string().max(2048),
+      /** Aviso quando já existe pedido em aberto (mesmo email/telemóvel). */
+      duplicateOpenLeadMessage: line,
+      /** Passos finais do pedido (datas e voos/hotel). */
+      janelaDatasQuestion: line,
+      janelaDatasHint: line,
+      janelaDatasPlaceholder: line,
+      flexDatasQuestion: line,
+      flexDatasHint: line,
+      flexDatasLabelFixas: line,
+      flexDatasLabelMaisMenosUmaSemana: line,
+      flexDatasLabelTotalmenteFlex: line,
+      voosHotelQuestion: line,
+      voosHotelHint: line,
+      voosHotelLabelNada: line,
+      voosHotelLabelSoVoos: line,
+      voosHotelLabelSoHotel: line,
+      voosHotelLabelAmbos: line,
+      /** Passos imersivos — nome, email, telemóvel. */
+      pedidoStep1Title: line,
+      pedidoStep1Hint: line,
+      pedidoStep1Placeholder: line,
+      pedidoStep2Title: line,
+      pedidoStep2Hint: line,
+      pedidoStep2Placeholder: line,
+      pedidoStep3Title: line,
+      pedidoStep3Hint: line,
+      pedidoStep3Placeholder: line,
+      pedidoStep5Title: line,
+      pedidoStep5Hint: line,
+      pedidoStep6Title: line,
+      pedidoStep6Hint: line,
+      pedidoStep7Title: line,
+      pedidoStep7Hint: line,
+      pedidoStep7Placeholder: line,
+      pedidoStep8Title: line,
+      pedidoStep8Hint: line,
+      pedidoStep12Title: line,
+      pedidoStep12Hint: line,
+      pedidoRapidoCardTitle: line,
+      pedidoRapidoCardBody: line,
+      pedidoRapidoCardCta: line,
+      pedidoRapidoModalTitle: line,
+      pedidoRapidoModalBody: line,
+      pedidoRapidoModalPlaceholder: line,
+      pedidoRapidoModalSubmit: line,
+      pedidoRapidoModalBack: line,
+    })
+    .strict(),
+  /** Textos do quadro de leads (SLA visível, exportação). Editável no CRM. */
+  crm: z
+    .object({
+      /** Horas até ao indicador verde (número em texto, ex. 24). */
+      slaGreenMaxHours: z.string().max(20),
+      /** Horas até ao limite amarelo; acima fica vermelho. */
+      slaYellowMaxHours: z.string().max(20),
+      csvExportHint: line,
     })
     .strict(),
   quizSuccess: z
@@ -143,6 +199,58 @@ const siteContentSchema = z.object({
       bullet1: line,
       bullet2: line,
       bullet3: line,
+      /** Parágrafo opcional na página Obrigado, acima da caixa de benefícios. */
+      thankYouAccountIntro: line,
+      /** Secção na home: linha pequena (vazio = não mostra o bloco na home). */
+      homeEyebrow: line,
+      /** Secção na home: título (vazio = não mostra o bloco). */
+      homeTitle: line,
+      homeBody: line,
+      homeCtaLabel: line,
+      homeLoginLabel: line,
+    })
+    .strict(),
+  /** Histórias curtas tipo «3 noites em X · orçamento Y» — junto ao feed, editável no CRM. */
+  travelStories: z
+    .object({
+      eyebrow: line,
+      title: line,
+      subtitle: line,
+      items: z
+        .array(
+          z
+            .object({
+              headline: line,
+              nightsBudgetLine: line,
+              blurb: line,
+              linkUrl: z.string().max(2048),
+              linkLabel: line,
+            })
+            .strict(),
+        )
+        .max(12),
+    })
+    .strict(),
+  /** Transparência: passos, primeiro contacto e prazos. */
+  howWeWork: z
+    .object({
+      eyebrow: line,
+      title: line,
+      subtitle: line,
+      steps: z
+        .array(
+          z
+            .object({
+              title: line,
+              body: line,
+            })
+            .strict(),
+        )
+        .max(8),
+      firstContactTitle: line,
+      firstContactBody: line,
+      timingsTitle: line,
+      timingsBody: line,
     })
     .strict(),
   socialFeed: z
@@ -233,6 +341,71 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     falarComSilviaLabel: "Falar com a Sílvia",
     falarComSilviaUrl: "",
     falarComSilviaInstagramUrl: "",
+    duplicateOpenLeadMessage:
+      "Já tens um pedido em aberto connosco — vamos tratar disso por esse contacto. Se for mesmo um pedido novo ou urgente, envia um email ou mensagem a dizer que é uma segunda intenção.",
+    janelaDatasQuestion: "Que janela de datas tens em mente?",
+    janelaDatasHint:
+      "Mesmo aproximada (mês, feriado, férias escolares) — ajuda a preparar orçamentos sem idas e voltas.",
+    janelaDatasPlaceholder:
+      "Ex.: 10 a 20 de agosto · ou «qualquer fim de semana de setembro»",
+    flexDatasQuestion: "Quão fixas são essas datas?",
+    flexDatasHint:
+      "Quanto mais margem tiveres, mais opções costumam aparecer nos voos e hotéis.",
+    flexDatasLabelFixas: "Datas fixas (não posso mudar)",
+    flexDatasLabelMaisMenosUmaSemana: "Posso flexibilizar cerca de uma semana",
+    flexDatasLabelTotalmenteFlex: "Totalmente flexível — o melhor preço manda",
+    voosHotelQuestion: "Já tens voos ou hotel reservados?",
+    voosHotelHint:
+      "Sabermos isto evita duplicar trabalho e alinha a proposta ao que já tens.",
+    voosHotelLabelNada: "Ainda não — quero ajuda com tudo",
+    voosHotelLabelSoVoos: "Já tenho voos",
+    voosHotelLabelSoHotel: "Já tenho hotel / alojamento",
+    voosHotelLabelAmbos: "Já tenho voos e hotel",
+    pedidoStep1Title: "Como te chamas?",
+    pedidoStep1Hint:
+      "O nome que preferires que usemos nas mensagens.",
+    pedidoStep1Placeholder: "O teu nome",
+    pedidoStep2Title: "O teu email",
+    pedidoStep2Hint:
+      "Para te enviarmos confirmação e a proposta quando estiver pronta.",
+    pedidoStep2Placeholder: "nome@email.com",
+    pedidoStep3Title: "O teu telemóvel",
+    pedidoStep3Hint:
+      "Para a Sílvia te poder ligar com rapidez se fizer sentido — não partilhamos o número fora deste contacto.",
+    pedidoStep3Placeholder: "Ex.: 912 345 678 ou +351 912 345 678",
+    pedidoStep5Title: "Que experiência te faz brilhar os olhos?",
+    pedidoStep5Hint:
+      "Escolhe a que mais se aproxima — depois afinamos ao pormenor.",
+    pedidoStep6Title: "Com quem imaginas partir à descoberta?",
+    pedidoStep6Hint:
+      "Ajuda-nos a pensar em quartos, ritmo e tipo de experiência.",
+    pedidoStep7Title: "Onde queres que a história comece?",
+    pedidoStep7Hint:
+      "País, ilha, cidade ou até uma ideia vaga — se vieste de uma publicação, já deixámos uma sugestão; podes alterar à vontade.",
+    pedidoStep7Placeholder:
+      "Ex.: Maldivas em bungalow sobre a água, Japão na primavera…",
+    pedidoStep8Title: "Em que faixa te queres mover?",
+    pedidoStep8Hint:
+      "Por pessoa ou por casal — como fizer sentido para ti. É só uma referência para calibrarmos expectativas.",
+    pedidoStep12Title: "Está tudo como imaginaste?",
+    pedidoStep12Hint:
+      "Revê os detalhes — depois é connosco: a Sílvia trata do resto.",
+    pedidoRapidoCardTitle: "Preferes não continuar com todos os passos agora?",
+    pedidoRapidoCardBody:
+      "Envia um pedido rápido com o contacto que já indicaste e uma linha sobre o destino — a Sílvia trata do resto. O formulário completo continua disponível se quiseres voltar depois.",
+    pedidoRapidoCardCta: "Usar pedido rápido (contacto + destino)",
+    pedidoRapidoModalTitle: "Pedido rápido",
+    pedidoRapidoModalBody:
+      "Uma linha sobre onde queres ir ou o que imaginaste — depois completamos pormenores contigo.",
+    pedidoRapidoModalPlaceholder: "Ex.: Lua-de-mel nas Maldivas em maio…",
+    pedidoRapidoModalSubmit: "Enviar pedido rápido",
+    pedidoRapidoModalBack: "Continuar o pedido completo",
+  },
+  crm: {
+    slaGreenMaxHours: "24",
+    slaYellowMaxHours: "48",
+    csvExportHint:
+      "Exporta todas as leads em CSV (UTF-8) para folha de cálculo.",
   },
   quizSuccess: {
     greetingLine: "Olá, {nome}!",
@@ -274,6 +447,51 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     bullet1: "Roteiros e conteúdos exclusivos para quem se regista",
     bullet2: "Wishlist para guardares destinos e inspirações",
     bullet3: "Alertas opcionais quando há novas promoções no site",
+    thankYouAccountIntro:
+      "Criar conta é gratuito e ajuda-nos a manter o diálogo: guardas a wishlist, vês roteiros na tua área e, quando voltares a pedir ajuda, já vamos ao que interessa — um segundo pedido costuma ser um excelente sinal de confiança.",
+    homeEyebrow: "Área de cliente",
+    homeTitle: "Continua a conversa com uma conta gratuita",
+    homeBody:
+      "A wishlist e os roteiros ficam na tua área autenticada. Assim guardas inspiração do feed e, quando enviares um novo pedido já com sessão iniciada, a primeira resposta encaixa melhor no que já conversámos — poupa tempo a ti e à Sílvia.",
+    homeCtaLabel: "Criar conta",
+    homeLoginLabel: "Já tenho conta — entrar",
+  },
+  travelStories: {
+    eyebrow: "Ideias com números",
+    title: "Histórias rápidas para te orientares",
+    subtitle:
+      "Exemplos reais de como combinamos noites, destino e faixa de investimento — inspira e ajuda a qualificar o teu próximo pedido.",
+    items: [],
+  },
+  howWeWork: {
+    eyebrow: "Transparência",
+    title: "Como trabalhamos",
+    subtitle:
+      "Um processo claro desde o primeiro contacto — sem surpresas desagradáveis e com espaço para afinar contigo.",
+    steps: [
+      {
+        title: "1. Envias o pedido",
+        body: "No site, com o máximo de detalhe que conseguires: datas, estilo, orçamento e quem viaja.",
+      },
+      {
+        title: "2. Leitura humana",
+        body: "A Sílvia lê o pedido em pessoa e responde por email ou telemóvel — normalmente nas próximas 24–48 horas úteis.",
+      },
+      {
+        title: "3. Primeira proposta",
+        body: "Ideias e valores alinhados com o que pediste; depois afinamos juntas até encaixar no que imaginas.",
+      },
+      {
+        title: "4. Reserva e acompanhamento",
+        body: "Quando decidires, tratamos dos fornecedores escolhidos e mantemo-nos disponíveis para dúvidas até à viagem.",
+      },
+    ],
+    firstContactTitle: "O que inclui o primeiro contacto",
+    firstContactBody:
+      "Confirmação de que recebemos o teu pedido, esclarecimento de dúvidas essenciais e uma primeira linha de ideias ou perguntas de afinação — ainda não é um pacote fechado, é o arranque de uma conversa profissional.",
+    timingsTitle: "Prazos que podes contar",
+    timingsBody:
+      "Resposta inicial: tipicamente 24–48 horas úteis após o pedido. Propostas mais elaboradas podem precisar de mais um ou dois dias, consoante destinos e disponibilidade — avisamos-te se for o caso.",
   },
   socialFeed: {
     eyebrow: "Instagram",
@@ -307,6 +525,16 @@ function mergeSection(
 
 function normKey(s: string): string {
   return s.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+const LEGACY_HOME_ORDER_NORM =
+  "hero,feed,social,consultora,quiz".replace(/\s/g, "");
+
+function upgradeHomeOrderIfLegacy(homeOrderCsv: string): string {
+  if (homeOrderCsv.replace(/\s/g, "") === LEGACY_HOME_ORDER_NORM) {
+    return DEFAULT_HOME_ORDER_CSV;
+  }
+  return homeOrderCsv;
 }
 
 /** Textos antigos do CMS (ex. «Quiz de viagem») → cópia actual, sem ir à BD à mão. */
@@ -359,10 +587,16 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
   }
   const p = payload as Record<string, unknown>;
   const merged: SiteContent = {
-    layout: mergeSection(
-      base.layout,
-      p.layout as Record<string, unknown> | undefined,
-    ) as SiteContent["layout"],
+    layout: (() => {
+      const lo = mergeSection(
+        base.layout,
+        p.layout as Record<string, unknown> | undefined,
+      ) as SiteContent["layout"];
+      return {
+        ...lo,
+        homeOrderCsv: upgradeHomeOrderIfLegacy(lo.homeOrderCsv),
+      };
+    })(),
     hero: mergeSection(base.hero, p.hero as Record<string, unknown>) as SiteContent["hero"],
     feed: mergeSection(base.feed, p.feed as Record<string, unknown>) as SiteContent["feed"],
     featuredVideo: mergeSection(
@@ -370,6 +604,7 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
       p.featuredVideo as Record<string, unknown>,
     ) as SiteContent["featuredVideo"],
     quiz: mergeSection(base.quiz, p.quiz as Record<string, unknown>) as SiteContent["quiz"],
+    crm: mergeSection(base.crm, p.crm as Record<string, unknown>) as SiteContent["crm"],
     quizSuccess: mergeSection(
       base.quizSuccess,
       p.quizSuccess as Record<string, unknown>,
@@ -408,6 +643,82 @@ export function mergeSiteContentFromDb(payload: unknown): SiteContent {
       base.registerIncentive,
       p.registerIncentive as Record<string, unknown>,
     ) as SiteContent["registerIncentive"],
+    travelStories: (() => {
+      const d = base.travelStories;
+      const raw = p.travelStories;
+      if (typeof raw !== "object" || raw === null) return d;
+      const o = raw as Record<string, unknown>;
+      const eyebrow = typeof o.eyebrow === "string" ? o.eyebrow : d.eyebrow;
+      const title = typeof o.title === "string" ? o.title : d.title;
+      const subtitle =
+        typeof o.subtitle === "string" ? o.subtitle : d.subtitle;
+      let items = d.items;
+      if (Array.isArray(o.items)) {
+        items = o.items
+          .filter(
+            (x): x is Record<string, unknown> =>
+              typeof x === "object" && x !== null,
+          )
+          .map((x) => ({
+            headline:
+              typeof x.headline === "string" ? x.headline : "",
+            nightsBudgetLine:
+              typeof x.nightsBudgetLine === "string"
+                ? x.nightsBudgetLine
+                : "",
+            blurb: typeof x.blurb === "string" ? x.blurb : "",
+            linkUrl: typeof x.linkUrl === "string" ? x.linkUrl : "",
+            linkLabel: typeof x.linkLabel === "string" ? x.linkLabel : "",
+          }))
+          .slice(0, 12);
+      }
+      return { eyebrow, title, subtitle, items };
+    })(),
+    howWeWork: (() => {
+      const d = base.howWeWork;
+      const raw = p.howWeWork;
+      if (typeof raw !== "object" || raw === null) return d;
+      const o = raw as Record<string, unknown>;
+      const eyebrow = typeof o.eyebrow === "string" ? o.eyebrow : d.eyebrow;
+      const title = typeof o.title === "string" ? o.title : d.title;
+      const subtitle =
+        typeof o.subtitle === "string" ? o.subtitle : d.subtitle;
+      const firstContactTitle =
+        typeof o.firstContactTitle === "string"
+          ? o.firstContactTitle
+          : d.firstContactTitle;
+      const firstContactBody =
+        typeof o.firstContactBody === "string"
+          ? o.firstContactBody
+          : d.firstContactBody;
+      const timingsTitle =
+        typeof o.timingsTitle === "string" ? o.timingsTitle : d.timingsTitle;
+      const timingsBody =
+        typeof o.timingsBody === "string" ? o.timingsBody : d.timingsBody;
+      let steps = d.steps;
+      if (Array.isArray(o.steps)) {
+        steps = o.steps
+          .filter(
+            (x): x is Record<string, unknown> =>
+              typeof x === "object" && x !== null,
+          )
+          .map((x) => ({
+            title: typeof x.title === "string" ? x.title : "",
+            body: typeof x.body === "string" ? x.body : "",
+          }))
+          .slice(0, 8);
+      }
+      return {
+        eyebrow,
+        title,
+        subtitle,
+        steps,
+        firstContactTitle,
+        firstContactBody,
+        timingsTitle,
+        timingsBody,
+      };
+    })(),
     socialFeed: (() => {
       const sf =
         typeof p.socialFeed === "object" && p.socialFeed !== null
