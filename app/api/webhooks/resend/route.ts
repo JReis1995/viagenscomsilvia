@@ -45,12 +45,19 @@ export async function POST(request: Request) {
   }
 
   if (event.type !== "email.received") {
+    console.info("[resend-webhook] ignored event type:", event.type);
     return NextResponse.json({ ok: true, ignored: event.type });
   }
 
   const { email_id, from, subject, created_at } = event.data;
+  if (!email_id) {
+    console.error("[resend-webhook] missing email_id in payload");
+    return NextResponse.json({ ok: false, error: "missing email_id" }, { status: 400 });
+  }
+
   const fromEmail = parseFromEmailHeader(from);
   if (!fromEmail) {
+    console.warn("[resend-webhook] skip no_from; raw from:", from?.slice(0, 120));
     return NextResponse.json({ ok: true, skipped: "no_from" });
   }
 
@@ -67,6 +74,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existing) {
+    console.info("[resend-webhook] deduped email_id:", email_id);
     return NextResponse.json({ ok: true, deduped: true });
   }
 
@@ -85,6 +93,11 @@ export async function POST(request: Request) {
 
   const leadId = await findLatestLeadIdByClientEmail(sr.client, fromEmail);
   if (!leadId) {
+    console.warn(
+      "[resend-webhook] skip no_lead_match for fromEmail=",
+      fromEmail,
+      "— confirma que existe lead com este email na BD (ou alias Gmail +).",
+    );
     return NextResponse.json({ ok: true, skipped: "no_lead_match" });
   }
 
@@ -128,6 +141,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 
+  console.info("[resend-webhook] inbound saved leadId=", leadId, "from=", fromEmail);
   revalidatePath("/crm");
   return NextResponse.json({ ok: true, leadId });
 }

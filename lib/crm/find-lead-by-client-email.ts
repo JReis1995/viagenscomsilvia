@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Lead mais recente com este email (pedidos repetidos do mesmo cliente). */
-export async function findLatestLeadIdByClientEmail(
+import { stripGmailPlusAddressing } from "@/lib/crm/normalize-client-email";
+
+async function leadIdByEmailIlike(
   db: SupabaseClient,
-  email: string,
+  address: string,
 ): Promise<string | null> {
-  const normalized = email.trim().toLowerCase();
+  const normalized = address.trim().toLowerCase();
   if (!normalized || !normalized.includes("@")) return null;
 
   const { data, error } = await db
@@ -18,4 +19,20 @@ export async function findLatestLeadIdByClientEmail(
 
   if (error || !data?.id) return null;
   return data.id;
+}
+
+/** Lead mais recente com este email (pedidos repetidos do mesmo cliente). */
+export async function findLatestLeadIdByClientEmail(
+  db: SupabaseClient,
+  email: string,
+): Promise<string | null> {
+  const normalized = email.trim().toLowerCase();
+  const stripped = stripGmailPlusAddressing(normalized);
+
+  const first = await leadIdByEmailIlike(db, normalized);
+  if (first) return first;
+  if (stripped !== normalized) {
+    return leadIdByEmailIlike(db, stripped);
+  }
+  return null;
 }
