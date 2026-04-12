@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildOrcamentoLeadEmail } from "@/lib/email/orcamento-lead";
+import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import { buildPropostaPdfBuffer } from "@/lib/pdf/proposta-pdf";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
@@ -148,12 +149,14 @@ export async function POST(
   }
 
   const { subject, html, text } = buildOrcamentoLeadEmail(lead.nome, detalhes);
+  const replyTo = resolveCrmEmailReplyTo(user.email ?? undefined);
 
   try {
     const resend = new Resend(apiKey);
     const { error: sendError } = await resend.emails.send({
       from,
       to: lead.email,
+      ...(replyTo ? { replyTo } : {}),
       subject,
       html,
       text,

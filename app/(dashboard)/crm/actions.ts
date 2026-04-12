@@ -8,6 +8,7 @@ import { notifyPromoSubscribers } from "@/lib/crm/notify-promo-subscribers";
 import { revalidatePublicHome } from "@/lib/next/revalidate-public-home";
 import { isCanonicalLeadStatus } from "@/lib/crm/lead-board";
 import { buildCrmConsultoraToLeadEmail } from "@/lib/email/crm-consultora-to-lead";
+import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import {
   parseSiteContentForSave,
   type SiteContent,
@@ -160,7 +161,7 @@ export async function sendLeadCrmEmailAction(
     parsed.data.body,
   );
 
-  const replyTo = auth.user.email?.trim() || undefined;
+  const replyTo = resolveCrmEmailReplyTo(auth.user.email ?? undefined);
 
   try {
     const resend = new Resend(apiKey);

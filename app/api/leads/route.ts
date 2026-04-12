@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
+import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import { buildWelcomeQuickLeadEmail } from "@/lib/email/welcome-lead-quick";
 import { buildWelcomeLeadEmail } from "@/lib/email/welcome-lead";
 import { createPublicServerClient } from "@/lib/supabase/public-server";
@@ -94,9 +95,11 @@ export async function POST(request: Request) {
       try {
         const resend = new Resend(apiKey);
         const { subject, html, text } = buildWelcomeQuickLeadEmail(row);
+        const replyTo = resolveCrmEmailReplyTo(undefined);
         const { error: sendError } = await resend.emails.send({
           from,
           to: row.email,
+          ...(replyTo ? { replyTo } : {}),
           subject,
           html,
           text,
@@ -155,9 +158,11 @@ export async function POST(request: Request) {
     try {
       const resend = new Resend(apiKey);
       const { subject, html, text } = buildWelcomeLeadEmail(row);
+      const replyTo = resolveCrmEmailReplyTo(undefined);
       const { error: sendError } = await resend.emails.send({
         from,
         to: row.email,
+        ...(replyTo ? { replyTo } : {}),
         subject,
         html,
         text,

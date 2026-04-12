@@ -18,6 +18,13 @@ import {
   isCanonicalLeadStatus,
   type LeadBoardStatus,
 } from "@/lib/crm/lead-board";
+import {
+  FRESH_PEDIDO_HOURS,
+  RECENT_INBOUND_EMAIL_HOURS,
+  hasRecentInboundEmail,
+  isFreshPedido,
+  leadCardHighlightRingClass,
+} from "@/lib/crm/lead-highlights";
 import { buildLeadTimeline } from "@/lib/crm/lead-timeline";
 import type {
   ClientDecisionEntry,
@@ -123,6 +130,8 @@ type LeadCardInnerProps = {
   historyCount: number;
   onOpenHistory: () => void;
   onComposeEmail: () => void;
+  highlightFreshPedido?: boolean;
+  highlightInboundReply?: boolean;
 };
 
 function LeadCardInner({
@@ -132,6 +141,8 @@ function LeadCardInner({
   historyCount,
   onOpenHistory,
   onComposeEmail,
+  highlightFreshPedido = false,
+  highlightInboundReply = false,
 }: LeadCardInnerProps) {
   const urgency = useMemo(() => leadUrgency(lead), [lead]);
 
@@ -165,6 +176,22 @@ function LeadCardInner({
       <div className="mt-2 flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-ocean-900">{lead.nome}</p>
+          {highlightInboundReply ? (
+            <span
+              className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-900"
+              title={`Resposta por email nas últimas ${RECENT_INBOUND_EMAIL_HOURS}h`}
+            >
+              Resposta email
+            </span>
+          ) : null}
+          {highlightFreshPedido ? (
+            <span
+              className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950"
+              title={`Pedido nas últimas ${FRESH_PEDIDO_HOURS}h`}
+            >
+              Novo pedido
+            </span>
+          ) : null}
           {lead.pedido_rapido ? (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
               Rápido
@@ -315,6 +342,17 @@ export function LeadsKanban({
     setComposeState({ leadId, preset });
   }
 
+  const leadHighlightFlags = useCallback(
+    (lead: LeadBoardRow) => {
+      const emails = crmOutboundByLeadId[lead.id];
+      return {
+        freshPedido: isFreshPedido(lead),
+        inboundReply: hasRecentInboundEmail(emails),
+      };
+    },
+    [crmOutboundByLeadId],
+  );
+
   function preferFollowUpFirst(lead: LeadBoardRow): boolean {
     if (!lead.data_envio_orcamento) return false;
     return (
@@ -436,7 +474,7 @@ export function LeadsKanban({
           <p className="mt-1 text-xs text-ocean-600">
             {viewMode === "board"
               ? "Quadro por estado."
-              : "Fila por urgência; com orçamento enviado, «Follow-up por email» abre Gmail/Outlook na web."}
+              : "Fila por urgência; cartões com anel destacam pedidos novos ou resposta por email recente."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -477,40 +515,64 @@ export function LeadsKanban({
         </div>
       </div>
 
+      <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-ocean-600">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-1 ring-amber-600/25"
+            aria-hidden
+          />
+          Anel âmbar · pedido nas últimas {FRESH_PEDIDO_HOURS}h
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-1 ring-emerald-700/20"
+            aria-hidden
+          />
+          Anel verde · email recebido (CRM) nas últimas{" "}
+          {RECENT_INBOUND_EMAIL_HOURS}h
+        </span>
+      </p>
+
       {viewMode === "today" ? (
         <div className="rounded-2xl border border-ocean-100/90 bg-ocean-50/30 p-4">
           {todayOrdered.length === 0 ? (
             <p className="text-sm text-ocean-600">Sem leads.</p>
           ) : (
             <ul className="space-y-4">
-              {todayOrdered.map((lead) => (
-                <li key={lead.id}>
-                  <article
-                    className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm ${
-                      updatingId === lead.id ? "opacity-60" : ""
-                    }`}
-                  >
-                    <LeadCardInner
-                      lead={lead}
-                      showUrgencyLine
-                      showStatusBadge
-                      historyCount={
-                        buildLeadTimeline(
-                          lead,
-                          clientThreadsByLeadId[lead.id] ?? [],
-                          clientDecisionsByLeadId[lead.id] ?? [],
-                          crmOutboundByLeadId[lead.id] ?? [],
-                        ).length
-                      }
-                      onOpenHistory={() => setHistoryLeadId(lead.id)}
-                      onComposeEmail={() =>
-                        openEmailCompose(lead.id, "free")
-                      }
-                    />
-                    {leadActions(lead, "today")}
-                  </article>
-                </li>
-              ))}
+              {todayOrdered.map((lead) => {
+                const hi = leadHighlightFlags(lead);
+                return (
+                  <li key={lead.id}>
+                    <article
+                      className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm ${leadCardHighlightRingClass(
+                        hi.freshPedido,
+                        hi.inboundReply,
+                      )} ${updatingId === lead.id ? "opacity-60" : ""}`}
+                    >
+                      <LeadCardInner
+                        lead={lead}
+                        showUrgencyLine
+                        showStatusBadge
+                        highlightFreshPedido={hi.freshPedido}
+                        highlightInboundReply={hi.inboundReply}
+                        historyCount={
+                          buildLeadTimeline(
+                            lead,
+                            clientThreadsByLeadId[lead.id] ?? [],
+                            clientDecisionsByLeadId[lead.id] ?? [],
+                            crmOutboundByLeadId[lead.id] ?? [],
+                          ).length
+                        }
+                        onOpenHistory={() => setHistoryLeadId(lead.id)}
+                        onComposeEmail={() =>
+                          openEmailCompose(lead.id, "free")
+                        }
+                      />
+                      {leadActions(lead, "today")}
+                    </article>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -558,51 +620,60 @@ export function LeadsKanban({
                   </p>
                 </div>
                 <ul className="flex min-h-[120px] flex-1 flex-col gap-3 p-3">
-                  {list.map((lead) => (
-                    <li key={lead.id}>
-                      <article
-                        draggable={updatingId !== lead.id}
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("text/lead-id", lead.id);
-                          e.dataTransfer.effectAllowed = "move";
-                          setDragLeadId(lead.id);
-                        }}
-                        onDragEnd={() => {
-                          setDragLeadId(null);
-                          setDragOverColumn(null);
-                        }}
-                        className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm transition ${
-                          updatingId === lead.id ? "opacity-60" : ""
-                        } ${
-                          dragLeadId === lead.id
-                            ? "opacity-50 ring-2 ring-ocean-400/50"
-                            : ""
-                        } ${
-                          updatingId === lead.id
-                            ? "cursor-wait"
-                            : "cursor-grab active:cursor-grabbing"
-                        }`}
-                      >
-                        <LeadCardInner
-                          lead={lead}
-                          showUrgencyLine={false}
-                          historyCount={
-                            buildLeadTimeline(
-                              lead,
-                              clientThreadsByLeadId[lead.id] ?? [],
-                              clientDecisionsByLeadId[lead.id] ?? [],
-                              crmOutboundByLeadId[lead.id] ?? [],
-                            ).length
-                          }
-                          onOpenHistory={() => setHistoryLeadId(lead.id)}
-                          onComposeEmail={() =>
-                            openEmailCompose(lead.id, "free")
-                          }
-                        />
-                        {leadActions(lead, "board")}
-                      </article>
-                    </li>
-                  ))}
+                  {list.map((lead) => {
+                    const hi = leadHighlightFlags(lead);
+                    const dragging = dragLeadId === lead.id;
+                    return (
+                      <li key={lead.id}>
+                        <article
+                          draggable={updatingId !== lead.id}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/lead-id", lead.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            setDragLeadId(lead.id);
+                          }}
+                          onDragEnd={() => {
+                            setDragLeadId(null);
+                            setDragOverColumn(null);
+                          }}
+                          className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm transition ${
+                            updatingId === lead.id ? "opacity-60" : ""
+                          } ${
+                            dragging
+                              ? "opacity-50 ring-2 ring-ocean-400/50"
+                              : leadCardHighlightRingClass(
+                                  hi.freshPedido,
+                                  hi.inboundReply,
+                                )
+                          } ${
+                            updatingId === lead.id
+                              ? "cursor-wait"
+                              : "cursor-grab active:cursor-grabbing"
+                          }`}
+                        >
+                          <LeadCardInner
+                            lead={lead}
+                            showUrgencyLine={false}
+                            highlightFreshPedido={hi.freshPedido}
+                            highlightInboundReply={hi.inboundReply}
+                            historyCount={
+                              buildLeadTimeline(
+                                lead,
+                                clientThreadsByLeadId[lead.id] ?? [],
+                                clientDecisionsByLeadId[lead.id] ?? [],
+                                crmOutboundByLeadId[lead.id] ?? [],
+                              ).length
+                            }
+                            onOpenHistory={() => setHistoryLeadId(lead.id)}
+                            onComposeEmail={() =>
+                              openEmailCompose(lead.id, "free")
+                            }
+                          />
+                          {leadActions(lead, "board")}
+                        </article>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             );
@@ -640,52 +711,65 @@ export function LeadsKanban({
                 </p>
               </div>
               <ul className="flex min-h-[120px] flex-1 flex-col gap-3 p-3">
-                {(grouped.get(OUTROS_COLUMN_KEY) ?? []).map((lead) => (
-                  <li key={lead.id}>
-                    <article
-                      draggable={updatingId !== lead.id}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/lead-id", lead.id);
-                        e.dataTransfer.effectAllowed = "move";
-                        setDragLeadId(lead.id);
-                      }}
-                      onDragEnd={() => {
-                        setDragLeadId(null);
-                        setDragOverColumn(null);
-                      }}
-                      className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm ${
-                        updatingId === lead.id ? "opacity-60" : ""
-                      } ${
-                        updatingId === lead.id
-                          ? "cursor-wait"
-                          : "cursor-grab active:cursor-grabbing"
-                      }`}
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/90">
-                        Estado na BD: {lead.status}
-                      </p>
-                      <div className="mt-2">
-                        <LeadCardInner
-                          lead={lead}
-                          showUrgencyLine={false}
-                          historyCount={
-                            buildLeadTimeline(
-                              lead,
-                              clientThreadsByLeadId[lead.id] ?? [],
-                              clientDecisionsByLeadId[lead.id] ?? [],
-                              crmOutboundByLeadId[lead.id] ?? [],
-                            ).length
-                          }
-                          onOpenHistory={() => setHistoryLeadId(lead.id)}
-                          onComposeEmail={() =>
-                            openEmailCompose(lead.id, "free")
-                          }
-                        />
-                      </div>
-                      {leadActions(lead, "board")}
-                    </article>
-                  </li>
-                ))}
+                {(grouped.get(OUTROS_COLUMN_KEY) ?? []).map((lead) => {
+                  const hi = leadHighlightFlags(lead);
+                  const dragging = dragLeadId === lead.id;
+                  return (
+                    <li key={lead.id}>
+                      <article
+                        draggable={updatingId !== lead.id}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/lead-id", lead.id);
+                          e.dataTransfer.effectAllowed = "move";
+                          setDragLeadId(lead.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragLeadId(null);
+                          setDragOverColumn(null);
+                        }}
+                        className={`rounded-xl border border-ocean-100 bg-white p-4 shadow-sm transition ${
+                          updatingId === lead.id ? "opacity-60" : ""
+                        } ${
+                          dragging
+                            ? "opacity-50 ring-2 ring-ocean-400/50"
+                            : leadCardHighlightRingClass(
+                                hi.freshPedido,
+                                hi.inboundReply,
+                              )
+                        } ${
+                          updatingId === lead.id
+                            ? "cursor-wait"
+                            : "cursor-grab active:cursor-grabbing"
+                        }`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800/90">
+                          Estado na BD: {lead.status}
+                        </p>
+                        <div className="mt-2">
+                          <LeadCardInner
+                            lead={lead}
+                            showUrgencyLine={false}
+                            highlightFreshPedido={hi.freshPedido}
+                            highlightInboundReply={hi.inboundReply}
+                            historyCount={
+                              buildLeadTimeline(
+                                lead,
+                                clientThreadsByLeadId[lead.id] ?? [],
+                                clientDecisionsByLeadId[lead.id] ?? [],
+                                crmOutboundByLeadId[lead.id] ?? [],
+                              ).length
+                            }
+                            onOpenHistory={() => setHistoryLeadId(lead.id)}
+                            onComposeEmail={() =>
+                              openEmailCompose(lead.id, "free")
+                            }
+                          />
+                        </div>
+                        {leadActions(lead, "board")}
+                      </article>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : null}
