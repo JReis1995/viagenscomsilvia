@@ -5,6 +5,7 @@ import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
 import { buildWelcomeQuickLeadEmail } from "@/lib/email/welcome-lead-quick";
 import { buildWelcomeLeadEmail } from "@/lib/email/welcome-lead";
 import { hasOpenDuplicateLead } from "@/lib/crm/lead-duplicate";
+import { resolvePromoCampaignIdForLead } from "@/lib/crm/resolve-promo-campaign-on-lead";
 import { createPublicServerClient } from "@/lib/supabase/public-server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 import {
@@ -87,6 +88,15 @@ export async function POST(request: Request) {
       }
     }
 
+    let promoCampaignId: string | null = null;
+    if (srDup.ok) {
+      promoCampaignId = await resolvePromoCampaignIdForLead({
+        db: srDup.client,
+        campanhaToken: row.campanha_token,
+        submitEmail: row.email,
+      });
+    }
+
     const { error: dbError } = await supabase.from("leads").insert({
       nome: row.nome,
       email: row.email,
@@ -98,6 +108,7 @@ export async function POST(request: Request) {
       orcamento_estimado: null,
       pedido_rapido: true,
       ...attr,
+      ...(promoCampaignId ? { promo_campaign_id: promoCampaignId } : {}),
     });
 
     if (dbError) {
@@ -163,6 +174,15 @@ export async function POST(request: Request) {
     }
   }
 
+  let promoCampaignIdFull: string | null = null;
+  if (srDup.ok) {
+    promoCampaignIdFull = await resolvePromoCampaignIdForLead({
+      db: srDup.client,
+      campanhaToken: row.campanha_token,
+      submitEmail: row.email,
+    });
+  }
+
   const { error: dbError } = await supabase.from("leads").insert({
     nome: row.nome,
     email: row.email,
@@ -177,6 +197,7 @@ export async function POST(request: Request) {
     ja_tem_voos_hotel: row.ja_tem_voos_hotel,
     pedido_rapido: false,
     ...attr,
+    ...(promoCampaignIdFull ? { promo_campaign_id: promoCampaignIdFull } : {}),
   });
 
   if (dbError) {

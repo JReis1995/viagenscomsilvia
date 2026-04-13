@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 export function ClientRegisterForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -20,28 +18,29 @@ export function ClientRegisterForm() {
     setInfo(null);
     setLoading(true);
 
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "";
-    const supabase = createClient();
-    const { error: signError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/conta")}`,
-      },
-    });
+    try {
+      const res = await fetch("/api/auth/register-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
 
-    setLoading(false);
+      setLoading(false);
 
-    if (signError) {
-      setError(signError.message);
-      return;
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível criar a conta.");
+        return;
+      }
+
+      setInfo(
+        "Enviamos um email da Viagens com Sílvia com o link para entrares na conta. Podes fazer login quando quiseres.",
+      );
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setError("Erro de rede. Tenta de novo.");
     }
-
-    setInfo(
-      "Se o teu projeto tiver confirmação por email, abre a caixa de entrada e valida a conta. Depois podes entrar aqui.",
-    );
-    router.refresh();
   }
 
   return (

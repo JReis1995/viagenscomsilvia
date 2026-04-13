@@ -6,9 +6,13 @@ import { useRouter } from "next/navigation";
 import {
   markLeadCrmMessagesReadAction,
   registerLeadInboundEmailAction,
+  updateLeadAutoFollowupAction,
   updateLeadNotasInternasAction,
 } from "@/app/(dashboard)/crm/actions";
-import { LeadEmailComposeModal } from "@/components/crm/lead-email-compose-modal";
+import {
+  LeadEmailComposeModal,
+  type EmailComposePreset,
+} from "@/components/crm/lead-email-compose-modal";
 import { LeadTimelineChat } from "@/components/crm/lead-timeline-chat";
 import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildLeadTimeline } from "@/lib/crm/lead-timeline";
@@ -37,6 +41,7 @@ type Props = {
   crmOutboundEmails?: CrmThreadEmailEntry[];
   propostaEnvios?: LeadPropostaEnvioRow[];
   onNotasSaved?: (leadId: string, notas: string | null) => void;
+  onAutoFollowupSaved?: (leadId: string, autoFollowup: boolean) => void;
   /** Após marcar mensagens CRM como vistas (remove o alerta no quadro). */
   onMessagesViewed?: (leadId: string) => void;
 };
@@ -70,13 +75,18 @@ export function LeadQuizDetailModal({
   crmOutboundEmails = [],
   propostaEnvios = [],
   onNotasSaved,
+  onAutoFollowupSaved,
   onMessagesViewed,
 }: Props) {
   const router = useRouter();
   const [notas, setNotas] = useState(lead.notas_internas?.trim() ?? "");
   const [notasMsg, setNotasMsg] = useState<string | null>(null);
   const [pendingNotas, startNotasTransition] = useTransition();
-  const [emailComposeOpen, setEmailComposeOpen] = useState(false);
+  const [emailComposePreset, setEmailComposePreset] =
+    useState<EmailComposePreset | null>(null);
+  const [autoFollowup, setAutoFollowup] = useState(lead.auto_followup);
+  const [autoFollowupMsg, setAutoFollowupMsg] = useState<string | null>(null);
+  const [pendingAuto, startAutoTransition] = useTransition();
   const [inboundSubject, setInboundSubject] = useState("");
   const [inboundBody, setInboundBody] = useState("");
   const [inboundMsg, setInboundMsg] = useState<string | null>(null);
@@ -88,7 +98,9 @@ export function LeadQuizDetailModal({
     setInboundSubject("");
     setInboundBody("");
     setInboundMsg(null);
-  }, [lead.id, lead.notas_internas]);
+    setAutoFollowup(lead.auto_followup);
+    setAutoFollowupMsg(null);
+  }, [lead.id, lead.notas_internas, lead.auto_followup]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -179,6 +191,22 @@ export function LeadQuizDetailModal({
     });
   }
 
+  function toggleAutoFollowup(next: boolean) {
+    setAutoFollowupMsg(null);
+    startAutoTransition(() => {
+      void (async () => {
+        const res = await updateLeadAutoFollowupAction(lead.id, next);
+        if (res.ok) {
+          setAutoFollowup(next);
+          onAutoFollowupSaved?.(lead.id, next);
+          router.refresh();
+        } else {
+          setAutoFollowupMsg(`Erro: ${res.error}`);
+        }
+      })();
+    });
+  }
+
   function saveNotas() {
     setNotasMsg(null);
     startNotasTransition(() => {
@@ -228,7 +256,7 @@ export function LeadQuizDetailModal({
             <button
               type="button"
               className="text-ocean-700 underline decoration-ocean-400 underline-offset-2 hover:text-ocean-900"
-              onClick={() => setEmailComposeOpen(true)}
+              onClick={() => setEmailComposePreset("free")}
             >
               {lead.email}
             </button>
@@ -533,10 +561,59 @@ export function LeadQuizDetailModal({
             </div>
             <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
               <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
-                Follow-up automático
+                Follow-up automático (cron)
               </dt>
-              <dd className="mt-0.5 text-ocean-900">
-                {lead.auto_followup ? "Sim" : "Não"}
+              <dd className="mt-0.5 space-y-2 text-ocean-900">
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={autoFollowup}
+                    disabled={pendingAuto}
+                    onChange={(e) => toggleAutoFollowup(e.target.checked)}
+                    className="mt-0.5 rounded border-ocean-300 text-ocean-800"
+                  />
+                  <span>
+                    Permitir que o sistema envie o lembrete automático por
+                    email (quando a ficha estiver em «Nova Lead», sem orçamento,
+                    e as condições globais do servidor estiverem activas).
+                  </span>
+                </label>
+                <p className="text-[11px] leading-snug text-ocean-600">
+                  O atraso mínimo desde o pedido até ao 1.º envio automático é
+                  configurável no servidor com{" "}
+                  <code className="rounded bg-ocean-100/80 px-1 font-mono text-[10px]">
+                    FOLLOWUP_LEAD_MIN_DAYS
+                  </code>{" "}
+                  (por omissão 3 dias). A activação global (todas as fichas)
+                  fica na base de dados, tabela{" "}
+                  <code className="rounded bg-ocean-100/80 px-1 font-mono text-[10px]">
+                    configuracoes_globais
+                  </code>
+                  — não aparece neste ecrã.
+                </p>
+                <button
+                  type="button"
+                  disabled={
+                    !lead.email?.trim() || Boolean(emailComposePreset)
+                  }
+                  onClick={() =>
+                    setEmailComposePreset("initial_followup_reminder")
+                  }
+                  className="w-full rounded-lg border border-ocean-200 bg-white px-3 py-2 text-left text-xs font-medium text-ocean-800 shadow-sm transition hover:bg-ocean-50 disabled:opacity-50"
+                >
+                  Lembrete inicial (modelo do automático) — rever e enviar…
+                </button>
+                {autoFollowupMsg ? (
+                  <p
+                    className={`text-xs ${
+                      autoFollowupMsg.startsWith("Erro")
+                        ? "text-terracotta"
+                        : "text-emerald-800"
+                    }`}
+                  >
+                    {autoFollowupMsg}
+                  </p>
+                ) : null}
               </dd>
             </div>
             <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
@@ -581,6 +658,63 @@ export function LeadQuizDetailModal({
                 </p>
               </dd>
             </div>
+            {lead.promo_campaign_id || lead.promo_campaigns ? (
+              <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-3 py-2.5">
+                <dt className="text-[10px] font-semibold uppercase tracking-wider text-amber-900/90">
+                  Campanha promo (email CRM)
+                </dt>
+                <dd className="mt-1.5 space-y-1.5 text-xs text-ocean-900">
+                  {lead.promo_campaigns ? (
+                    <>
+                      <p className="text-sm font-semibold text-amber-950">
+                        Aplicar{" "}
+                        <span className="tabular-nums">
+                          {lead.promo_campaigns.discount_percent}%
+                        </span>{" "}
+                        de desconto na proposta / orçamento (oferta registada nesta
+                        campanha).
+                      </p>
+                      <p>
+                        <span className="text-ocean-500">Campanha: </span>
+                        {lead.promo_campaigns.titulo_publicacao.trim()}
+                      </p>
+                      <p className="tabular-nums">
+                        <span className="text-ocean-500">Oferta válida até: </span>
+                        {formatPedidoDate(lead.promo_campaigns.expires_at)}
+                      </p>
+                      <p className="break-all">
+                        <span className="text-ocean-500">Link da publicação: </span>
+                        <a
+                          href={lead.promo_campaigns.link_publicacao.trim()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-ocean-800 underline decoration-ocean-300 underline-offset-2"
+                        >
+                          Abrir
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <p>
+                      Esta ficha ficou ligada à campanha{" "}
+                      <code className="rounded bg-white/80 px-1 font-mono text-[10px]">
+                        {lead.promo_campaign_id}
+                      </code>
+                      . Os detalhes do desconto estão na tabela de campanhas na
+                      base de dados.
+                    </p>
+                  )}
+                  <p className="text-[11px] leading-snug text-ocean-600">
+                    O cliente entrou pelo link do email (token na URL) e usou o{" "}
+                    <strong className="font-medium text-ocean-800">
+                      mesmo email
+                    </strong>{" "}
+                    que recebeu a campanha; o sistema gravou essa ligação ao
+                    criar o pedido.
+                  </p>
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </div>
 
@@ -602,11 +736,11 @@ export function LeadQuizDetailModal({
         </div>
       </div>
 
-      {emailComposeOpen ? (
+      {emailComposePreset ? (
         <LeadEmailComposeModal
           lead={lead}
-          preset="free"
-          onClose={() => setEmailComposeOpen(false)}
+          preset={emailComposePreset}
+          onClose={() => setEmailComposePreset(null)}
         />
       ) : null}
     </div>

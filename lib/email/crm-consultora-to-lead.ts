@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email/html";
 import { BRAND_MARK } from "@/lib/site/brand";
+import { getCrmEmailSignatureLinks } from "@/lib/site/social";
 
 function bodyTextToHtmlParagraphs(text: string): string {
   const blocks = text.trim().split(/\n{2,}/);
@@ -27,7 +28,26 @@ export function buildCrmConsultoraToLeadEmail(
     : "Olá,";
   const bodyHtml = bodyTextToHtmlParagraphs(bodyText.trim());
 
-  const text = `${subj}\n\nOlá ${nomeLead.trim() || "cliente"},\n\n${bodyText.trim()}\n\n—\n${BRAND_MARK}`;
+  const links = getCrmEmailSignatureLinks();
+  const linkSep =
+    '<span style="color:#b8d4cf;padding:0 6px;">·</span>';
+  const subtleLink = (href: string, label: string) =>
+    `<a href="${escapeHtml(href)}" style="color:#1d7a72;text-decoration:underline;text-underline-offset:2px;">${escapeHtml(label)}</a>`;
+
+  const signatureHtml = `
+              <p style="margin:20px 0 0 0;padding-top:16px;border-top:1px solid #d4ebe7;font-size:13px;line-height:1.55;color:#1d7a72;">
+                ${subtleLink(links.clientAreaUrl, "Área de cliente")}<span style="color:#5a7a76;"> — consulta o estado do pedido e as mensagens com login.</span>
+              </p>
+              <p style="margin:10px 0 0 0;font-size:12px;line-height:1.6;color:#5a7a76;">
+                ${subtleLink(links.siteOrigin, "Site")}${linkSep}${subtleLink(links.instagramUrl, "Instagram")}${linkSep}${subtleLink(links.tiktokUrl, "TikTok")}
+              </p>
+              <p style="margin:6px 0 0 0;font-size:12px;line-height:1.5;">
+                ${subtleLink(`mailto:${links.consultoraEmail}`, links.consultoraEmail)}
+              </p>`;
+
+  const textSig = `\n\nÁrea de cliente: ${links.clientAreaUrl}\nSite: ${links.siteOrigin}\nInstagram: ${links.instagramUrl}\nTikTok: ${links.tiktokUrl}\n${links.consultoraEmail}`;
+
+  const text = `${subj}\n\nOlá ${nomeLead.trim() || "cliente"},\n\n${bodyText.trim()}\n\nPodes responder a este email com dúvidas ou pedidos de ajuste.${textSig}\n\n—\n${BRAND_MARK}`;
 
   const html = `
 <!DOCTYPE html>
@@ -60,6 +80,7 @@ export function buildCrmConsultoraToLeadEmail(
               <p style="margin:0 0 18px 0;font-size:16px;line-height:1.6;color:#1d7a72;">${greeting}</p>
               ${bodyHtml}
               <p style="margin:22px 0 0 0;font-size:14px;line-height:1.55;color:#1d7a72;">Podes responder a este email com dúvidas ou pedidos de ajuste.</p>
+              ${signatureHtml}
             </td>
           </tr>
           <tr>

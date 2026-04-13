@@ -45,6 +45,26 @@ export function CrmHeader({ email }: Props) {
             |
           </span>
           <Link
+            href="/crm/dashboard"
+            className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"
+            title="Indicadores e widgets"
+          >
+            Dashboard
+          </Link>
+          <span className="text-ocean-200" aria-hidden>
+            |
+          </span>
+          <Link
+            href="/crm/inscritos"
+            className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"
+            title="Contas e campanhas promo"
+          >
+            Inscritos
+          </Link>
+          <span className="text-ocean-200" aria-hidden>
+            |
+          </span>
+          <Link
             href="/crm/site"
             className="rounded-xl px-2 py-1.5 transition hover:bg-ocean-50 hover:text-ocean-900"
             title="Editar textos da página inicial"

@@ -1,0 +1,63 @@
+-- Verificação manual das métricas do CRM → Dashboard (/crm/dashboard)
+--
+-- === Período ===
+-- Preset «tudo»: sem filtro de data em `data_pedido`.
+-- Preset 30 / 90 dias: data_pedido >= (agora UTC - intervalo) — igual a `dashboardJanelaFromIso` no código.
+-- Personalizado: data_pedido >= :desde_inicio_utc AND data_pedido <= :ate_fim_utc
+--   com :desde_inicio_utc = :desde_ymd || 'T00:00:00Z' e :ate_fim_utc = fim do dia UTC do :ate_ymd
+--   (máximo 731 dias de calendário entre :desde_ymd e :ate_ymd).
+--
+-- === Estados (opcional) ===
+-- Parâmetro `estados` na URL: lista separada por vírgulas de status canónicos
+-- ('Nova Lead', 'Em contacto', 'Proposta enviada', 'Ganho', 'Cancelado', 'Arquivado')
+-- e/ou '__outros__' para estados não canónicos.
+-- Ausente = todos os estados. String vazia = universo vazio (zero linhas).
+-- O filtro de estados aplica-se em memória na app após o SELECT por data; para reproduzir
+-- em SQL puro, acrescenta à cláusula WHERE, por exemplo:
+--   and (
+--     l.status in ('Nova Lead', 'Em contacto')
+--     or (l.status not in ('Nova Lead','Em contacto','Proposta enviada','Ganho','Cancelado','Arquivado')
+--         and :incluir_outros)
+--   )
+--
+-- Total de linhas no universo (data + estado)
+-- select count(*) from public.leads l where <data> and <estado> ;
+
+-- Por estado (canonical + outros agrupados) — só sobre linhas já filtradas
+-- select l.status, count(*) from public.leads l where ... group by 1 order by 2 desc;
+
+-- Leads «abertas» (não Ganho, Cancelado, Arquivado)
+-- select count(*) from public.leads l
+-- where ... and l.status not in ('Ganho', 'Cancelado', 'Arquivado');
+
+-- Fechadas ganhas / canceladas / arquivo
+-- select count(*) filter (where l.status = 'Ganho') as ganho,
+--        count(*) filter (where l.status = 'Cancelado') as cancelado,
+--        count(*) filter (where l.status = 'Arquivado') as arquivado
+-- from public.leads l where ... ;
+
+-- Taxa de conversão (decisão): Ganho / (Ganho + Cancelado) — Arquivado fora
+-- with t as (select * from public.leads l where ...)
+-- select
+--   case when count(*) filter (where status in ('Ganho','Cancelado')) > 0
+--     then count(*) filter (where status = 'Ganho')::float
+--          / nullif(count(*) filter (where status in ('Ganho','Cancelado')), 0)
+--     else null
+--   end as taxa_conversao
+-- from t;
+
+-- Hit ratio: Ganho / leads com proposta/orçamento enviado (data_envio_orcamento not null)
+-- — denominador diferente da taxa de conversão; ambos calculados só sobre o universo filtrado.
+-- with t as (select * from public.leads l where ...)
+-- select
+--   count(*) filter (where status = 'Ganho') as ganho,
+--   count(*) filter (where data_envio_orcamento is not null) as com_proposta_enviada,
+--   case when count(*) filter (where data_envio_orcamento is not null) > 0
+--     then count(*) filter (where status = 'Ganho')::float
+--          / nullif(count(*) filter (where data_envio_orcamento is not null), 0)
+--     else null
+--   end as hit_ratio
+-- from t;
+
+-- Leads com mensagem por ler
+-- select count(*) from public.leads l where ... and coalesce(l.has_unread_messages, false);

@@ -1,0 +1,24 @@
+-- Sprint 5 — OAuth (Google / Facebook) e consentimentos no primeiro acesso à Conta
+--
+-- Não são obrigatórias migrações SQL novas para este sprint: o consentimento
+-- fica em `auth.users.raw_user_meta_data` (chaves `consent_completed`, etc.) e
+-- o opt-in de marketing continua em `public.promo_alert_prefs`.
+--
+-- === Supabase Dashboard ===
+--
+-- 1) Authentication → Providers
+--    Activar Google e Facebook; configurar Client ID e Client Secret
+--    (Google Cloud Console / Meta for Developers).
+--
+-- 2) Authentication → URL Configuration
+--    - Site URL: domínio público (ex. https://www.exemplo.pt) ou
+--      http://localhost:3000 em desenvolvimento local.
+--    - Redirect URLs: adicionar, por ambiente,
+--        https://<domínio>/auth/callback
+--        http://localhost:3000/auth/callback
+--      A aplicação redirecciona para este caminho após OAuth, com ?next=...
+--
+-- === Variável de ambiente opcional no servidor de front-end ===
+--
+-- NEXT_PUBLIC_PRIVACY_POLICY_URL — se definida, o modal de consentimento na
+-- Conta mostra ligação directa para a política de privacidade.

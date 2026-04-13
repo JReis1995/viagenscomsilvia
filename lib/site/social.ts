@@ -1,3 +1,58 @@
+/** Perfil principal no Instagram (marketing + assinatura de emails). */
+export const DEFAULT_INSTAGRAM_PROFILE_URL =
+  "https://www.instagram.com/viagenscomsilvia_/";
+
+/** Perfil principal no TikTok (marketing + assinatura de emails). */
+export const DEFAULT_TIKTOK_PROFILE_URL =
+  "https://www.tiktok.com/@silviamilheiro";
+
+/** Email de contacto da consultora nas assinaturas automáticas. */
+export const CONSULTORA_PUBLIC_EMAIL = "silviaamaralmilheiro@viagenscomsilvia.com";
+
+export function getSiteOrigin(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`;
+  }
+  return "http://localhost:3000";
+}
+
+export function getClientAreaAbsoluteUrl(): string {
+  return `${getSiteOrigin()}/conta`;
+}
+
+export function getInstagramProfileUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_INSTAGRAM_PROFILE_URL?.trim() ||
+    DEFAULT_INSTAGRAM_PROFILE_URL
+  );
+}
+
+export function getTikTokProfileUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_TIKTOK_PROFILE_URL?.trim() ||
+    DEFAULT_TIKTOK_PROFILE_URL
+  );
+}
+
+/** Dados para o rodapé dos emails enviados pela consultora no CRM. */
+export function getCrmEmailSignatureLinks(): {
+  siteOrigin: string;
+  clientAreaUrl: string;
+  instagramUrl: string;
+  tiktokUrl: string;
+  consultoraEmail: string;
+} {
+  return {
+    siteOrigin: getSiteOrigin(),
+    clientAreaUrl: getClientAreaAbsoluteUrl(),
+    instagramUrl: getInstagramProfileUrl(),
+    tiktokUrl: getTikTokProfileUrl(),
+    consultoraEmail: CONSULTORA_PUBLIC_EMAIL,
+  };
+}
+
 /** Defaults: posts públicos da Sílvia no Instagram (editável via env). */
 export const DEFAULT_INSTAGRAM_PHOTO_POST =
   "https://www.instagram.com/p/DOegj5PjRjg/";

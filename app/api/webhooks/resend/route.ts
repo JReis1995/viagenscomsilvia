@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
+import { extractTaggedLeadIdFromResendReceived } from "@/lib/crm/extract-lead-id-from-inbound";
 import { findLatestLeadIdByClientEmail } from "@/lib/crm/find-lead-by-client-email";
 import { parseFromEmailHeader } from "@/lib/crm/parse-from-email";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
@@ -68,16 +69,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: event.type });
   }
 
-  const { email_id, from, subject, created_at } = event.data;
+  const { email_id, from, subject, created_at, to, cc, bcc } = event.data as {
+    email_id?: string;
+    from?: string;
+    subject?: string;
+    created_at?: string;
+    to?: string[];
+    cc?: string[];
+    bcc?: string[];
+  };
   if (!email_id) {
     console.error("[resend-webhook] missing email_id in payload");
     return NextResponse.json({ ok: false, error: "missing email_id" }, { status: 400 });
-  }
-
-  const fromEmail = parseFromEmailHeader(from);
-  if (!fromEmail) {
-    console.warn("[resend-webhook] skip no_from; raw from:", from?.slice(0, 120));
-    return NextResponse.json({ ok: true, skipped: "no_from" });
   }
 
   const sr = tryCreateServiceRoleClient();
@@ -90,6 +93,7 @@ export async function POST(request: Request) {
     .from("lead_crm_emails")
     .select("id")
     .eq("resend_email_id", email_id)
+    .eq("direction", "inbound")
     .maybeSingle();
 
   if (existing) {
@@ -110,15 +114,61 @@ export async function POST(request: Request) {
       : "") ||
     "(sem texto)";
 
-  const leadId = await findLatestLeadIdByClientEmail(sr.client, fromEmail);
-  if (!leadId) {
+  const rd = received.data as {
+    to?: string[];
+    cc?: string[];
+    bcc?: string[];
+    reply_to?: string[];
+    headers?: Record<string, unknown>;
+  };
+
+  const taggedLeadId = extractTaggedLeadIdFromResendReceived({
+    webhookTo: to,
+    webhookCc: cc,
+    webhookBcc: bcc,
+    received: {
+      to: rd.to,
+      cc: rd.cc,
+      bcc: rd.bcc,
+      reply_to: rd.reply_to,
+      headers: rd.headers,
+    },
+  });
+
+  const fromEmail = parseFromEmailHeader(from ?? "");
+
+  let resolvedLeadId: string | null = null;
+  if (taggedLeadId) {
+    const { data: row } = await sr.client
+      .from("leads")
+      .select("id")
+      .eq("id", taggedLeadId)
+      .maybeSingle();
+    if (row?.id) resolvedLeadId = row.id;
+  }
+
+  if (!resolvedLeadId && fromEmail) {
+    resolvedLeadId = await findLatestLeadIdByClientEmail(sr.client, fromEmail);
+  }
+
+  if (!resolvedLeadId) {
     console.warn(
-      "[resend-webhook] skip no_lead_match for fromEmail=",
-      fromEmail,
-      "— confirma que existe lead com este email na BD (ou alias Gmail +).",
+      "[resend-webhook] skip no_lead_match from=",
+      fromEmail || "(vazio)",
+      "to=",
+      JSON.stringify(to ?? rd.to ?? []),
+      "tagged=",
+      taggedLeadId ?? "(nenhum)",
+      "header_keys=",
+      rd.headers && typeof rd.headers === "object"
+        ? Object.keys(rd.headers).join(",")
+        : "(n/a)",
+      "— confirma Reply-To com +leadId ou email da lead no From.",
     );
     return NextResponse.json({ ok: true, skipped: "no_lead_match" });
   }
+
+  const leadId = resolvedLeadId;
 
   const subj = subject?.trim() || "(sem assunto)";
   const insertRow: {

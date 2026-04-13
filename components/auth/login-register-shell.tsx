@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { ClientRegisterForm } from "@/components/auth/client-register-form";
 import { LoginForm } from "@/components/auth/login-form";
+import { OAuthProviderButtons } from "@/components/auth/oauth-provider-buttons";
 import type { SiteContent } from "@/lib/site/site-content";
 
 type Props = {
@@ -44,6 +45,15 @@ export function LoginRegisterShell({ registerIncentive }: Props) {
             </div>
           ) : null}
         </div>
+        <OAuthProviderButtons nextParam={next ?? null} />
+        <div className="relative py-1">
+          <div className="absolute inset-0 flex items-center" aria-hidden>
+            <span className="w-full border-t border-ocean-100" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase tracking-wide text-ocean-500">
+            <span className="bg-white px-2">ou com email</span>
+          </div>
+        </div>
         <ClientRegisterForm />
         <p className="text-center text-sm text-ocean-600">
           Já tens conta?{" "}
@@ -69,6 +79,15 @@ export function LoginRegisterShell({ registerIncentive }: Props) {
             "Se já és cliente coloca o teu email e palavra-passe para aceder ao teu painel, caso contrário clica em \"Criar conta de cliente\"."
           }
         </p>
+      </div>
+      <OAuthProviderButtons nextParam={next ?? null} />
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center" aria-hidden>
+          <span className="w-full border-t border-ocean-100" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase tracking-wide text-ocean-500">
+          <span className="bg-white px-2">ou com email</span>
+        </div>
       </div>
       <LoginForm />
       <p className="text-center text-sm text-ocean-600">

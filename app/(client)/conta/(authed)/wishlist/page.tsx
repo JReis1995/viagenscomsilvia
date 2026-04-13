@@ -6,6 +6,7 @@ import {
   getYoutubeThumbnailUrl,
   getYoutubeVideoId,
 } from "@/lib/marketing/media";
+import { clientNeedsConsentScreen } from "@/lib/auth/consent";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -34,6 +35,10 @@ export default async function WishlistPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (clientNeedsConsentScreen(user)) {
+    return null;
+  }
 
   const { data: rows, error } = await supabase
     .from("wishlist_items")

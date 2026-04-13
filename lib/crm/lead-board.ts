@@ -35,10 +35,19 @@ export const LEAD_BOARD_COLUMNS = [
 
 export type LeadBoardStatus = (typeof LEAD_BOARD_COLUMNS)[number]["status"];
 
-/** Colunas visíveis no quadro de trabalho — fichas arquivadas ficam na secção «Arquivo». */
+/**
+ * Colunas do quadro «Trabalho» — só o pipeline activo.
+ * Ganho, Cancelado e Arquivado ficam no separador Arquivo (sub-grupos).
+ */
 export const LEAD_KANBAN_WORK_COLUMNS = LEAD_BOARD_COLUMNS.filter(
-  (c): c is (typeof LEAD_BOARD_COLUMNS)[number] & { status: Exclude<LeadBoardStatus, "Arquivado"> } =>
-    c.status !== "Arquivado",
+  (
+    c,
+  ): c is (typeof LEAD_BOARD_COLUMNS)[number] & {
+    status: "Nova Lead" | "Em contacto" | "Proposta enviada";
+  } =>
+    c.status !== "Arquivado" &&
+    c.status !== "Ganho" &&
+    c.status !== "Cancelado",
 );
 
 const CANONICAL = new Set<string>(
@@ -46,6 +55,12 @@ const CANONICAL = new Set<string>(
 );
 
 export const OUTROS_COLUMN_KEY = "__outros__";
+
+/** Todos os estados conhecidos — para selects «mudar estado» no arquivo. */
+export const LEAD_STATUS_SELECT_OPTIONS = LEAD_BOARD_COLUMNS.map((c) => ({
+  value: c.status,
+  label: c.title,
+}));
 
 export function isCanonicalLeadStatus(status: string): status is LeadBoardStatus {
   return CANONICAL.has(status);
@@ -72,7 +87,9 @@ export function groupLeadsByBoardColumn(
   return map;
 }
 
-/** Agrupa só leads que estão no quadro de trabalho (exclui «Arquivado»). */
+/**
+ * Agrupa leads visíveis no quadro «Trabalho» — exclui Arquivado, Ganho e Cancelado.
+ */
 export function groupLeadsForWorkBoard(
   leads: LeadBoardRow[],
 ): Map<string, LeadBoardRow[]> {
@@ -83,9 +100,21 @@ export function groupLeadsForWorkBoard(
   map.set(OUTROS_COLUMN_KEY, []);
 
   for (const lead of leads) {
-    if (lead.status === "Arquivado") continue;
+    if (
+      lead.status === "Arquivado" ||
+      lead.status === "Ganho" ||
+      lead.status === "Cancelado"
+    ) {
+      continue;
+    }
     const key = boardColumnKeyForStatus(lead.status);
-    if (key === "Arquivado") continue;
+    if (
+      key === "Arquivado" ||
+      key === "Ganho" ||
+      key === "Cancelado"
+    ) {
+      continue;
+    }
     const bucket = map.get(key);
     if (bucket) bucket.push(lead);
     else map.get(OUTROS_COLUMN_KEY)!.push(lead);

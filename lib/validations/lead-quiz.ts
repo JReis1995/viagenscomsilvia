@@ -16,6 +16,8 @@ export const leadMarketingAttributionSchema = z.object({
   utm_term: z.string().trim().max(200).optional(),
   referrer: z.string().trim().max(2000).optional(),
   landing_path: z.string().trim().max(2000).optional(),
+  /** Token assinado (campanha CRM) — ver `lib/crm/campaign-link.ts`. */
+  campanha_token: z.string().trim().max(4000).optional(),
 });
 
 export type LeadMarketingAttribution = z.infer<

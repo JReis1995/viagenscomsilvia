@@ -1,13 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { sendLeadCrmEmailAction } from "@/app/(dashboard)/crm/actions";
-import { followUpEmailDraft } from "@/lib/crm/lead-email-draft";
+import {
+  CRM_EMAIL_TEMPLATE_OPTIONS,
+  defaultCrmEmailTemplateFromPreset,
+  getCrmEmailDraftForLead,
+  type CrmEmailTemplateId,
+} from "@/lib/email/crm-email-templates";
 import type { LeadBoardRow } from "@/types/lead";
 
-export type EmailComposePreset = "free" | "followup";
+export type EmailComposePreset =
+  | "free"
+  | "followup"
+  | "initial_followup_reminder";
 
 type Props = {
   lead: LeadBoardRow;
@@ -17,22 +25,42 @@ type Props = {
 
 export function LeadEmailComposeModal({ lead, preset, onClose }: Props) {
   const router = useRouter();
+  const [templateId, setTemplateId] = useState<CrmEmailTemplateId>(() =>
+    defaultCrmEmailTemplateFromPreset(preset),
+  );
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const prevLeadIdRef = useRef<string | undefined>(undefined);
+  const prevPresetRef = useRef<EmailComposePreset | undefined>(undefined);
+
   useEffect(() => {
-    if (preset === "followup") {
-      const d = followUpEmailDraft(lead);
-      setSubject(d.subject);
-      setBody(d.body);
-    } else {
-      setSubject("");
-      setBody("");
+    const leadSwitch =
+      prevLeadIdRef.current !== undefined &&
+      prevLeadIdRef.current !== lead.id;
+    const presetSwitch =
+      prevPresetRef.current !== undefined && prevPresetRef.current !== preset;
+
+    let activeTemplate = templateId;
+    if (
+      prevLeadIdRef.current === undefined ||
+      leadSwitch ||
+      presetSwitch
+    ) {
+      activeTemplate = defaultCrmEmailTemplateFromPreset(preset);
+      setTemplateId(activeTemplate);
     }
+
+    prevLeadIdRef.current = lead.id;
+    prevPresetRef.current = preset;
+
+    const d = getCrmEmailDraftForLead(lead, activeTemplate);
+    setSubject(d.subject);
+    setBody(d.body);
     setError(null);
-  }, [lead.id, preset, lead.nome, lead.destino_sonho]);
+  }, [lead.id, preset, templateId, lead.nome, lead.destino_sonho]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -49,7 +77,10 @@ export function LeadEmailComposeModal({ lead, preset, onClose }: Props) {
     setError(null);
     startTransition(() => {
       void (async () => {
-        const res = await sendLeadCrmEmailAction(lead.id, subject, body);
+        const res = await sendLeadCrmEmailAction(lead.id, subject, body, {
+          markFollowupReminderSent:
+            templateId === "initial_followup_reminder",
+        });
         if (res.ok) {
           router.refresh();
           onClose();
@@ -87,6 +118,38 @@ export function LeadEmailComposeModal({ lead, preset, onClose }: Props) {
           </p>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5">
+          <label className="block text-xs font-medium text-ocean-700">
+            Modelo de mensagem
+            <select
+              value={templateId}
+              onChange={(e) =>
+                setTemplateId(e.target.value as CrmEmailTemplateId)
+              }
+              disabled={pending}
+              className="mt-1 w-full rounded-lg border border-ocean-200 bg-white px-3 py-2 text-sm text-ocean-900 shadow-sm focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-200 disabled:opacity-60"
+            >
+              {CRM_EMAIL_TEMPLATE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-[11px] leading-snug text-ocean-500">
+            O email enviado inclui automaticamente uma assinatura discreta (site,
+            Instagram, TikTok, contacto) e um atalho para a área de cliente
+            (/conta). Podes alterar o assunto e o texto abaixo como quiseres
+            antes de enviar.
+            {templateId === "initial_followup_reminder" ? (
+              <>
+                {" "}
+                Com o modelo «Lembrete inicial», após enviar com sucesso o sistema
+                regista a data do lembrete na ficha (como o cron), para não
+                voltar a enviar o automático logo a seguir com o mesmo tipo de
+                mensagem.
+              </>
+            ) : null}
+          </p>
           <label className="block text-xs font-medium text-ocean-700">
             Assunto
             <input

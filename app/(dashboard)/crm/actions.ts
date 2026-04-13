@@ -258,16 +258,61 @@ export async function updateLeadNotasInternasAction(
   return { ok: true };
 }
 
+const updateLeadAutoFollowupSchema = z.object({
+  leadId: z.string().uuid(),
+  autoFollowup: z.boolean(),
+});
+
+/** Liga ou desliga o lembrete automático (cron) só nesta ficha. */
+export async function updateLeadAutoFollowupAction(
+  leadId: string,
+  autoFollowup: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = updateLeadAutoFollowupSchema.safeParse({
+    leadId,
+    autoFollowup,
+  });
+  if (!parsed.success) {
+    return { ok: false, error: "Dados inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { error } = await auth.db
+    .from("leads")
+    .update({ auto_followup: parsed.data.autoFollowup })
+    .eq("id", parsed.data.leadId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
 const sendLeadCrmEmailSchema = z.object({
   leadId: z.string().uuid(),
   subject: z.string().trim().min(1).max(400),
   body: z.string().trim().min(1).max(12000),
 });
 
+export type SendLeadCrmEmailOptions = {
+  /**
+   * Quando o envio usa o modelo «Lembrete inicial (igual ao automático)»:
+   * grava `data_ultimo_followup` como o cron, para não repetir no dia seguinte.
+   */
+  markFollowupReminderSent?: boolean;
+};
+
 export async function sendLeadCrmEmailAction(
   leadId: string,
   subject: string,
   body: string,
+  options?: SendLeadCrmEmailOptions,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = sendLeadCrmEmailSchema.safeParse({ leadId, subject, body });
   if (!parsed.success) {
@@ -305,7 +350,9 @@ export async function sendLeadCrmEmailAction(
     parsed.data.body,
   );
 
-  const replyTo = resolveCrmEmailReplyTo(auth.user.email ?? undefined);
+  const replyTo = resolveCrmEmailReplyTo(auth.user.email ?? undefined, {
+    leadId: parsed.data.leadId,
+  });
 
   try {
     const resend = new Resend(apiKey);
@@ -352,6 +399,17 @@ export async function sendLeadCrmEmailAction(
         error:
           "Email enviado mas não foi possível registar no histórico. Anota manualmente.",
       };
+    }
+
+    if (options?.markFollowupReminderSent) {
+      const nowIso = new Date().toISOString();
+      const { error: fuErr } = await auth.db
+        .from("leads")
+        .update({ data_ultimo_followup: nowIso })
+        .eq("id", parsed.data.leadId);
+      if (fuErr) {
+        console.error("[crm-email] data_ultimo_followup:", fuErr.message);
+      }
     }
   } catch (e) {
     console.error("[crm-email]", e);

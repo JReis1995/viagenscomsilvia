@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { clientNeedsConsentScreen } from "@/lib/auth/consent";
 import { buildPedidoOrcamentoHrefFromPost } from "@/lib/marketing/pedido-orcamento";
 import {
   getYoutubeThumbnailUrl,
@@ -8,6 +9,7 @@ import {
   isLikelyVideoUrl,
 } from "@/lib/marketing/media";
 import { fetchMemberSecretPosts } from "@/lib/posts/fetch-member-secret-posts";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Roteiros secretos",
@@ -15,6 +17,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RoteirosSecretosPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (clientNeedsConsentScreen(user)) {
+    return null;
+  }
+
   const posts = await fetchMemberSecretPosts();
 
   return (

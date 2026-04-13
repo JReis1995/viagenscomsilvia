@@ -49,7 +49,7 @@ export default async function CrmHomePage() {
     const res = await sr.client
       .from("leads")
       .select(
-        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages",
+        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages, promo_campaign_id, promo_campaigns!promo_campaign_id ( discount_percent, titulo_publicacao, expires_at, link_publicacao )",
       )
       .order("data_pedido", { ascending: false });
     data = res.data as LeadBoardRow[] | null;
@@ -224,15 +224,19 @@ export default async function CrmHomePage() {
     });
   }
 
-  const quadroPainel =
-    leads.length === 0 ? (
-      <div className="rounded-2xl border border-ocean-100 bg-white/80 px-8 py-14 text-center shadow-md">
-        <p className="text-lg text-ocean-800">Ainda não há leads.</p>
-        <p className="mt-2 text-sm text-ocean-600">
-          Quando alguém enviar o pedido de orçamento no site, aparece aqui.
-        </p>
-      </div>
-    ) : (
+  const quadroPainel = (
+    <div className="space-y-4">
+      {leads.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-ocean-200 bg-ocean-50/40 px-6 py-5 text-center md:px-8">
+          <p className="text-sm font-medium text-ocean-900">
+            Ainda não há leads no quadro.
+          </p>
+          <p className="mt-1 text-sm text-ocean-600">
+            Usa <span className="font-semibold text-ocean-800">Nova lead manual</span>{" "}
+            abaixo para criar a primeira ficha, ou espera por pedidos do site.
+          </p>
+        </div>
+      ) : null}
       <LeadsKanban
         initialLeads={leads}
         clientThreadsByLeadId={clientThreadsByLeadId}
@@ -243,7 +247,8 @@ export default async function CrmHomePage() {
         slaYellowMaxHours={slaYellowH}
         quizCopy={siteContent.quiz}
       />
-    );
+    </div>
+  );
 
   const arquivoPainel = (
     <div className="rounded-2xl border border-ocean-100 bg-white p-6 shadow-lg md:p-8">
@@ -282,17 +287,21 @@ export default async function CrmHomePage() {
               <p className="text-sm text-ocean-600">
                 Usa <span className="font-medium text-ocean-800">Nova lead manual</span>{" "}
                 para registar pedidos que não vieram do site. Em{" "}
-                <span className="font-medium text-ocean-800">Trabalho</span>, arrasta
-                entre colunas ou usa «Arquivar» para guardar fichas no separador{" "}
-                <span className="font-medium text-ocean-800">Arquivo</span> (fora do
-                quadro). Pedidos novos entram em{" "}
-                <span className="font-medium text-ocean-800">Nova lead</span>. A cor
-                da borda segue os tempos que definiste em Conteúdo do site → Quadro
-                de leads (
+                <span className="font-medium text-ocean-800">Trabalho</span>, o quadro
+                mostra só o pipeline (Nova lead → Em contacto → Proposta enviada):
+                arrasta entre colunas; para{" "}
+                <span className="font-medium text-ocean-800">Ganho</span> ou{" "}
+                <span className="font-medium text-ocean-800">Cancelado</span> usa as
+                ligações no cartão. «Arquivar» envia a ficha para o arquivo geral. No
+                separador <span className="font-medium text-ocean-800">Arquivo</span>{" "}
+                vês três grupos — Ganhas, Canceladas e Arquivo geral — com contagens
+                separadas. Pedidos novos entram em{" "}
+                <span className="font-medium text-ocean-800">Nova lead</span>. A cor da
+                borda segue os tempos em Conteúdo do site → Quadro de leads (
                 <span className="font-medium text-ocean-800">{slaGreenH}h</span> /{" "}
                 <span className="font-medium text-ocean-800">{slaYellowH}h</span>
-                ). Na vista <span className="font-medium text-ocean-800">Hoje</span>, o
-                estado aparece no topo de cada cartão.
+                ). Na vista <span className="font-medium text-ocean-800">Hoje</span> só
+                entram leads activas no pipeline.
               </p>
             </div>
             {quadroPainel}

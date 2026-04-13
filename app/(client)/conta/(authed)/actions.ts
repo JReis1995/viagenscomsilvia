@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sendLeadDecisionNotifyEmail } from "@/lib/email/client-decision-notify";
+import { clientNeedsConsentScreen, CONSENT_POLICY_VERSION } from "@/lib/auth/consent";
 import { createClient } from "@/lib/supabase/server";
 import { clientNoteSchema } from "@/lib/validations/client-note";
 import {
@@ -23,6 +24,13 @@ export async function addLeadClientNote(
 
   if (!user) {
     return { ok: false, error: "Sessão expirada. Entra de novo." };
+  }
+
+  if (clientNeedsConsentScreen(user)) {
+    return {
+      ok: false,
+      error: "Completa primeiro o ecrã de consentimentos que aparece ao entrar na Conta.",
+    };
   }
 
   const parsed = clientNoteSchema.safeParse({
@@ -69,6 +77,13 @@ export async function submitLeadClientDecision(
 
   if (!user) {
     return { ok: false, error: "Sessão expirada. Entra de novo." };
+  }
+
+  if (clientNeedsConsentScreen(user)) {
+    return {
+      ok: false,
+      error: "Completa primeiro o ecrã de consentimentos que aparece ao entrar na Conta.",
+    };
   }
 
   const parsed = leadClientDecisionSchema.safeParse(raw);
@@ -120,6 +135,64 @@ export async function submitLeadClientDecision(
   return { ok: true };
 }
 
+export type ConsentCompleteResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Primeiro acesso à Conta: grava metadata de consentimento e alinha `promo_alert_prefs`
+ * com o opt-in de marketing escolhido (mesma fonte que campanhas em massa).
+ */
+export async function completeFirstLoginConsent(input: {
+  marketingOptIn: boolean;
+}): Promise<ConsentCompleteResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    return { ok: false, error: "Sessão expirada. Entra de novo." };
+  }
+
+  const { error: userError } = await supabase.auth.updateUser({
+    data: {
+      consent_completed: true,
+      consent_policy_version: CONSENT_POLICY_VERSION,
+      consent_marketing_opt_in: input.marketingOptIn,
+      consent_completed_at: new Date().toISOString(),
+    },
+  });
+
+  if (userError) {
+    console.error("[conta] consent updateUser:", userError.message);
+    return {
+      ok: false,
+      error: "Não foi possível guardar o consentimento. Tenta de novo.",
+    };
+  }
+
+  const { error: promoError } = await supabase.from("promo_alert_prefs").upsert(
+    {
+      user_id: user.id,
+      email: user.email.trim(),
+      opt_in: input.marketingOptIn,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (promoError) {
+    console.error("[conta] consent promo_alert_prefs:", promoError.message);
+    return {
+      ok: false,
+      error:
+        "Consentimento guardado parcialmente. Confirma sql/sprint3_plan_features.sql no Supabase.",
+    };
+  }
+
+  revalidatePath("/conta", "layout");
+  return { ok: true };
+}
+
 export type PromoPrefsResult = { ok: true } | { ok: false; error: string };
 
 export async function savePromoAlertPrefs(
@@ -132,6 +205,13 @@ export async function savePromoAlertPrefs(
 
   if (!user?.email) {
     return { ok: false, error: "Sessão expirada." };
+  }
+
+  if (clientNeedsConsentScreen(user)) {
+    return {
+      ok: false,
+      error: "Usa o ecrã de consentimentos para definir alertas de promoções na primeira visita.",
+    };
   }
 
   const { error } = await supabase.from("promo_alert_prefs").upsert(
@@ -175,6 +255,13 @@ export async function removeWishlistItem(id: string): Promise<WishlistResult> {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sessão expirada." };
 
+  if (clientNeedsConsentScreen(user)) {
+    return {
+      ok: false,
+      error: "Completa primeiro o ecrã de consentimentos na Conta.",
+    };
+  }
+
   const { error } = await supabase.from("wishlist_items").delete().eq("id", id);
 
   if (error) {
@@ -199,6 +286,13 @@ export async function addWishlistDestinoLabel(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Inicia sessão para guardar." };
+
+  if (clientNeedsConsentScreen(user)) {
+    return {
+      ok: false,
+      error: "Completa primeiro o ecrã de consentimentos na Conta.",
+    };
+  }
 
   const { error } = await supabase.from("wishlist_items").insert({
     user_id: user.id,

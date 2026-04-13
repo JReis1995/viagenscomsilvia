@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { ClientLeadNoteForm } from "@/components/conta/client-lead-note-form";
 import { PromoAlertsForm } from "@/components/conta/promo-alerts-form";
+import { clientNeedsConsentScreen } from "@/lib/auth/consent";
 import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { leadStatusLabelForClient } from "@/lib/crm/lead-status-client";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +37,10 @@ export default async function ContaHomePage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (clientNeedsConsentScreen(user)) {
+    return null;
+  }
 
   const userEmail = user?.email?.trim() ?? "";
 

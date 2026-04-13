@@ -1,3 +1,11 @@
+/** Join opcional `promo_campaigns` quando a lead veio do link de campanha. */
+export type LeadPromoCampaignEmbed = {
+  discount_percent: number;
+  titulo_publicacao: string;
+  expires_at: string;
+  link_publicacao: string;
+};
+
 /** Colunas do quadro CRM — valores gravados em `leads.status`. */
 export type LeadBoardRow = {
   id: string;
@@ -36,4 +44,7 @@ export type LeadBoardRow = {
   landing_path: string | null;
   /** Email inbound novo (webhook Resend) — ver sql/add_lead_has_unread_messages.sql */
   has_unread_messages?: boolean | null;
+  /** Preenchido pelo servidor se o pedido trouxe token de campanha válido + email coincidente. */
+  promo_campaign_id?: string | null;
+  promo_campaigns?: LeadPromoCampaignEmbed | null;
 };

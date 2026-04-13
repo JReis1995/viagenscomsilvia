@@ -61,11 +61,15 @@ export async function POST(
 
   const parsed = enviarOrcamentoSchema.safeParse(json);
   if (!parsed.success) {
+    const fe = parsed.error.flatten().fieldErrors;
     const msg =
-      parsed.error.flatten().fieldErrors.titulo?.[0] ??
-      parsed.error.flatten().fieldErrors.destino?.[0] ??
-      parsed.error.flatten().fieldErrors.datas?.[0] ??
-      parsed.error.flatten().fieldErrors.valor_total?.[0] ??
+      fe.titulo?.[0] ??
+      fe.destino?.[0] ??
+      fe.datas?.[0] ??
+      fe.valor_total?.[0] ??
+      fe.capa_banner_url?.[0] ??
+      fe.capa_accent_url?.[0] ??
+      fe.pdf_texto_capa?.[0] ??
       "Dados inválidos.";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
@@ -110,6 +114,43 @@ export async function POST(
     ...(body.longitude != null && !Number.isNaN(body.longitude)
       ? { longitude: body.longitude }
       : {}),
+    ...(body.capa_preset ? { capa_preset: body.capa_preset } : {}),
+    ...(body.capa_banner_url?.trim()
+      ? { capa_banner_url: body.capa_banner_url.trim() }
+      : {}),
+    ...(body.capa_accent_url?.trim()
+      ? { capa_accent_url: body.capa_accent_url.trim() }
+      : {}),
+    ...(body.pdf_texto_capa?.trim()
+      ? { pdf_texto_capa: body.pdf_texto_capa.trim() }
+      : {}),
+    ...(body.contacto_telefone?.trim()
+      ? { contacto_telefone: body.contacto_telefone.trim() }
+      : {}),
+    ...(body.pdf_voos &&
+    (body.pdf_voos.titulo_rota?.trim() ||
+      body.pdf_voos.bagagem?.trim() ||
+      body.pdf_voos.ida ||
+      body.pdf_voos.volta)
+      ? { pdf_voos: body.pdf_voos }
+      : {}),
+    ...(body.pdf_destaques?.length ? { pdf_destaques: body.pdf_destaques } : {}),
+    ...(body.pdf_precos &&
+    (body.pdf_precos.linha_resumo?.trim() ||
+      body.pdf_precos.preco_base?.trim() ||
+      body.pdf_precos.preco_final?.trim() ||
+      body.pdf_precos.nota_desconto?.trim())
+      ? { pdf_precos: body.pdf_precos }
+      : {}),
+    ...(body.pdf_exclusoes?.length
+      ? { pdf_exclusoes: body.pdf_exclusoes }
+      : {}),
+    ...(body.pdf_cancelamento &&
+    (body.pdf_cancelamento.aviso?.trim() ||
+      (body.pdf_cancelamento.linhas &&
+        body.pdf_cancelamento.linhas.length > 0))
+      ? { pdf_cancelamento: body.pdf_cancelamento }
+      : {}),
   };
 
   let pdfBuffer: Buffer;
@@ -149,7 +190,9 @@ export async function POST(
   }
 
   const { subject, html, text } = buildOrcamentoLeadEmail(lead.nome, detalhes);
-  const replyTo = resolveCrmEmailReplyTo(user.email ?? undefined);
+  const replyTo = resolveCrmEmailReplyTo(user.email ?? undefined, {
+    leadId: lead.id,
+  });
 
   try {
     const resend = new Resend(apiKey);

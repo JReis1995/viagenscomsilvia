@@ -11,6 +11,7 @@ import {
   getYoutubeVideoId,
   isLikelyVideoUrl,
 } from "@/lib/marketing/media";
+import { clientNeedsConsentScreen } from "@/lib/auth/consent";
 import { createClient } from "@/lib/supabase/server";
 import type { PostTipo } from "@/types/post";
 
@@ -39,6 +40,9 @@ export default async function PedidoInterativoPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) notFound();
+  if (clientNeedsConsentScreen(user)) {
+    return null;
+  }
 
   const userEmail = user.email?.trim() ?? "";
 

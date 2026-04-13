@@ -1,7 +1,7 @@
 import { escapeHtml } from "@/lib/email/html";
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { BRAND_MARK } from "@/lib/site/brand";
-import { PROPOSAL_BANNER_JPG } from "@/lib/pdf/travel-assets";
+import { resolveProposalImageUrls } from "@/lib/pdf/travel-assets";
 
 export function buildOrcamentoLeadEmail(
   nomeLead: string,
@@ -28,7 +28,7 @@ Qualquer dúvida ou ajuste, responde a esta mensagem.
 
 ${BRAND_MARK}`;
 
-  const bannerSrc = escapeHtml(PROPOSAL_BANNER_JPG);
+  const bannerSrc = escapeHtml(resolveProposalImageUrls(p).bannerUrl);
   const incluiHtml = p.inclui.length
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 0 0;"><tr><td style="padding:0;">${p.inclui
         .map(
@@ -71,8 +71,11 @@ ${BRAND_MARK}`;
           </tr>
           <tr>
             <td style="padding:8px 32px 24px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;line-height:1.65;color:#0f3d39;">
-              <p style="margin:0 0 16px 0;">Olá <strong>${escapeHtml(nomeLead)}</strong>,</p>
-              <p style="margin:0 0 20px 0;color:#1d7a72;">Enviamos em <strong>anexo o PDF</strong> com a tua proposta. Segue um resumo para consulta rápida.</p>
+              <p style="margin:0 0 12px 0;">Olá <strong>${escapeHtml(nomeLead)}</strong>,</p>
+              <p style="margin:0 0 18px 0;font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.35;letter-spacing:0.01em;color:#0f3d39;">
+                ${escapeHtml(p.titulo)}
+              </p>
+              <p style="margin:0 0 20px 0;color:#1d7a72;">Enviamos em <strong>anexo o PDF</strong> com todos os detalhes. Segue um resumo para consulta rápida.</p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f3ef;border-radius:12px;border:1px solid #d4ebe7;">
                 <tr>
                   <td style="padding:20px 22px;">

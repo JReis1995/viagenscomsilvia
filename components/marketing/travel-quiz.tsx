@@ -25,6 +25,10 @@ import {
   parsePedidoClimaParam,
   replacePedidoClimaInUrl,
 } from "@/lib/marketing/pedido-clima-url";
+import {
+  campaignTokenPayloadForLead,
+  stashCampaignTokenFromSearchParams,
+} from "@/lib/marketing/campaign-token-client";
 import { getLeadMarketingAttributionPayload } from "@/lib/marketing/session-attribution";
 import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import {
@@ -126,6 +130,10 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
   useEffect(() => {
     getLeadMarketingAttributionPayload();
   }, []);
+
+  useEffect(() => {
+    stashCampaignTokenFromSearchParams(searchParams);
+  }, [searchParams]);
 
   useEffect(() => {
     if (step !== 3 && step !== 4) {
@@ -371,6 +379,7 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
           ja_tem_voos_hotel: form.ja_tem_voos_hotel,
           website_url: honeypot,
           ...getLeadMarketingAttributionPayload(),
+          ...campaignTokenPayloadForLead(),
         }),
       });
       const data = (await res.json()) as {
@@ -451,6 +460,7 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
           destino_sonho: dest,
           website_url: honeypot,
           ...getLeadMarketingAttributionPayload(),
+          ...campaignTokenPayloadForLead(),
         }),
       });
       const data = (await res.json()) as {

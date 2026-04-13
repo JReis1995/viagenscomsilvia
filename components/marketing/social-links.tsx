@@ -1,5 +1,7 @@
-const instagramHref = "https://www.instagram.com/viagenscomsilvia_/";
-const tiktokHref = "https://www.tiktok.com/@silviamilheiro";
+import {
+  getInstagramProfileUrl,
+  getTikTokProfileUrl,
+} from "@/lib/site/social";
 
 type Props = {
   className?: string;
@@ -7,6 +9,8 @@ type Props = {
 };
 
 export function SocialLinks({ className = "", iconClassName = "" }: Props) {
+  const instagramHref = getInstagramProfileUrl();
+  const tiktokHref = getTikTokProfileUrl();
   return (
     <div className={`flex items-center justify-center gap-4 ${className}`}>
       <a

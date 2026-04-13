@@ -13,8 +13,10 @@ import { CrmManualLeadModal } from "@/components/crm/crm-manual-lead-modal";
 import { ProposalSendModal } from "@/components/crm/proposal-send-modal";
 import {
   LEAD_KANBAN_WORK_COLUMNS,
+  LEAD_STATUS_SELECT_OPTIONS,
   OUTROS_COLUMN_KEY,
   groupLeadsForWorkBoard,
+  isCanonicalLeadStatus,
   type LeadBoardStatus,
 } from "@/lib/crm/lead-board";
 import type {
@@ -36,6 +38,27 @@ import {
   type SiteContent,
 } from "@/lib/site/site-content";
 import type { LeadBoardRow } from "@/types/lead";
+
+type ArchiveSubTab = "won" | "lost" | "filed";
+
+function workspaceTabForLeadStatus(
+  status: LeadBoardStatus,
+): "work" | "archive" {
+  if (
+    status === "Ganho" ||
+    status === "Cancelado" ||
+    status === "Arquivado"
+  ) {
+    return "archive";
+  }
+  return "work";
+}
+
+function archiveSubTabForStatus(status: LeadBoardStatus): ArchiveSubTab {
+  if (status === "Ganho") return "won";
+  if (status === "Cancelado") return "lost";
+  return "filed";
+}
 
 type Props = {
   initialLeads: LeadBoardRow[];
@@ -160,6 +183,8 @@ type LeadCardInnerProps = {
   onOpenHistorico: () => void;
   /** Envia a ficha para a secção Arquivo (estado «Arquivado»). */
   onArchive?: () => void;
+  onMarkWon?: () => void;
+  onMarkLost?: () => void;
 };
 
 function LeadCardInner({
@@ -171,6 +196,8 @@ function LeadCardInner({
   onSendProposal,
   onOpenHistorico,
   onArchive,
+  onMarkWon,
+  onMarkLost,
 }: LeadCardInnerProps) {
   const wa = useMemo(
     () => whatsappHrefForLead(lead.telemovel, lead.nome),
@@ -232,6 +259,19 @@ function LeadCardInner({
       >
         {lead.email}
       </p>
+
+      {lead.promo_campaigns?.discount_percent != null ? (
+        <p
+          className="mt-1.5 text-[11px] font-semibold text-amber-900"
+          title="Pedido com campanha promo — vê «Campanha promo» em Ver detalhes"
+        >
+          Campanha: −{lead.promo_campaigns.discount_percent}% a aplicar
+        </p>
+      ) : lead.promo_campaign_id ? (
+        <p className="mt-1.5 text-[11px] font-medium text-amber-800/90">
+          Campanha promo — ver detalhes
+        </p>
+      ) : null}
 
       <div className="mt-1 flex items-center gap-1.5 text-xs text-ocean-500">
         <span className="tabular-nums" title="Tempo desde o pedido">
@@ -310,6 +350,24 @@ function LeadCardInner({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          {!terminal && onMarkWon ? (
+            <button
+              type="button"
+              onClick={onMarkWon}
+              className="text-xs font-medium text-emerald-700 underline decoration-emerald-200 underline-offset-2 hover:text-emerald-900"
+            >
+              Ganho
+            </button>
+          ) : null}
+          {!terminal && onMarkLost ? (
+            <button
+              type="button"
+              onClick={onMarkLost}
+              className="text-xs font-medium text-ocean-500 underline decoration-ocean-200 underline-offset-2 hover:text-ocean-800"
+            >
+              Cancelado
+            </button>
+          ) : null}
           {onArchive && lead.status !== "Arquivado" ? (
             <button
               type="button"
@@ -421,6 +479,101 @@ function ArchiveLeadRow({
   );
 }
 
+/** Leads em Ganho ou Cancelado no arquivo — mudança de estado sem arrastar. */
+function TerminalLeadRow({
+  lead,
+  orcamentoEnviosCount,
+  updatingId,
+  onVerDetalhes,
+  onSendProposal,
+  onOpenHistorico,
+  onComposeEmail,
+  onChangeStatus,
+  slaCardBorderClassName,
+}: {
+  lead: LeadBoardRow;
+  orcamentoEnviosCount: number;
+  updatingId: string | null;
+  onVerDetalhes: () => void;
+  onSendProposal: () => void;
+  onOpenHistorico: () => void;
+  onComposeEmail: () => void;
+  onChangeStatus: (status: LeadBoardStatus) => void;
+  slaCardBorderClassName: string;
+}) {
+  const [nextStatus, setNextStatus] = useState<LeadBoardStatus>(() =>
+    isCanonicalLeadStatus(lead.status) ? lead.status : "Em contacto",
+  );
+  const busy = updatingId === lead.id;
+
+  useEffect(() => {
+    setNextStatus(
+      isCanonicalLeadStatus(lead.status) ? lead.status : "Em contacto",
+    );
+  }, [lead.id, lead.status]);
+
+  return (
+    <li>
+      <article
+        className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorderClassName} ${
+          busy ? "opacity-60" : ""
+        }`}
+      >
+        <LeadCardInner
+          lead={lead}
+          showStatusLine
+          orcamentoEnviosCount={orcamentoEnviosCount}
+          onVerDetalhes={onVerDetalhes}
+          onSendProposal={onSendProposal}
+          onOpenHistorico={onOpenHistorico}
+          onComposeEmail={onComposeEmail}
+          onArchive={
+            lead.status !== "Arquivado"
+              ? () => onChangeStatus("Arquivado")
+              : undefined
+          }
+        />
+        <div className="mt-3 border-t border-ocean-100/90 pt-3">
+          <p className="text-[11px] font-medium text-ocean-600">
+            Alterar estado
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <label
+              className="text-xs text-ocean-600"
+              htmlFor={`term-${lead.id}`}
+            >
+              Novo estado:
+            </label>
+            <select
+              id={`term-${lead.id}`}
+              value={nextStatus}
+              onChange={(e) =>
+                setNextStatus(e.target.value as LeadBoardStatus)
+              }
+              disabled={busy}
+              className="min-w-[10rem] rounded-lg border border-ocean-200 bg-white px-2 py-1.5 text-xs text-ocean-900 shadow-sm focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-100 disabled:opacity-60"
+            >
+              {LEAD_STATUS_SELECT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={busy || nextStatus === lead.status}
+              onClick={() => onChangeStatus(nextStatus)}
+              className="rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-ocean-800 disabled:opacity-50"
+            >
+              Gravar estado
+            </button>
+          </div>
+        </div>
+      </article>
+    </li>
+  );
+}
+
 function orcamentoEnviosCountForLead(
   lead: LeadBoardRow,
   map: Record<string, LeadPropostaEnvioRow[]>,
@@ -458,6 +611,7 @@ export function LeadsKanban({
   const [historyLeadId, setHistoryLeadId] = useState<string | null>(null);
   const [manualLeadOpen, setManualLeadOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<"work" | "archive">("work");
+  const [archiveSubTab, setArchiveSubTab] = useState<ArchiveSubTab>("filed");
 
   const handleMessagesViewed = useCallback((leadId: string) => {
     setLeads((list) =>
@@ -484,8 +638,40 @@ export function LeadsKanban({
         ),
     [leads],
   );
+  const wonSorted = useMemo(
+    () =>
+      leads
+        .filter((l) => l.status === "Ganho")
+        .sort(
+          (a, b) =>
+            new Date(b.data_pedido).getTime() -
+            new Date(a.data_pedido).getTime(),
+        ),
+    [leads],
+  );
+  const lostSorted = useMemo(
+    () =>
+      leads
+        .filter((l) => l.status === "Cancelado")
+        .sort(
+          (a, b) =>
+            new Date(b.data_pedido).getTime() -
+            new Date(a.data_pedido).getTime(),
+        ),
+    [leads],
+  );
+  const archiveTotalCount =
+    wonSorted.length + lostSorted.length + archivedSorted.length;
   const todayOrdered = useMemo(
-    () => sortLeadsByUrgency(leads.filter((l) => l.status !== "Arquivado")),
+    () =>
+      sortLeadsByUrgency(
+        leads.filter(
+          (l) =>
+            l.status !== "Arquivado" &&
+            l.status !== "Ganho" &&
+            l.status !== "Cancelado",
+        ),
+      ),
     [leads],
   );
 
@@ -511,6 +697,12 @@ export function LeadsKanban({
           res.error ||
             "Não foi possível atualizar o estado. Verifica a ligação e tenta de novo.",
         );
+      } else {
+        const tab = workspaceTabForLeadStatus(newStatus);
+        setWorkspaceTab(tab);
+        if (tab === "archive") {
+          setArchiveSubTab(archiveSubTabForStatus(newStatus));
+        }
       }
     },
     [],
@@ -605,7 +797,13 @@ export function LeadsKanban({
           type="button"
           role="tab"
           aria-selected={workspaceTab === "archive"}
-          onClick={() => setWorkspaceTab("archive")}
+          onClick={() => {
+            setWorkspaceTab("archive");
+            if (wonSorted.length > 0) setArchiveSubTab("won");
+            else if (lostSorted.length > 0) setArchiveSubTab("lost");
+            else if (archivedSorted.length > 0) setArchiveSubTab("filed");
+            else setArchiveSubTab("filed");
+          }}
           className={`inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
             workspaceTab === "archive"
               ? "bg-white text-ocean-900 shadow-sm"
@@ -613,9 +811,9 @@ export function LeadsKanban({
           }`}
         >
           Arquivo
-          {archivedSorted.length > 0 ? (
+          {archiveTotalCount > 0 ? (
             <span className="ml-2 rounded-full bg-ocean-200/90 px-2 py-0.5 text-[11px] font-bold tabular-nums text-ocean-800">
-              {archivedSorted.length}
+              {archiveTotalCount}
             </span>
           ) : null}
         </button>
@@ -628,8 +826,8 @@ export function LeadsKanban({
           <p className="font-medium text-ocean-900">Vista do painel</p>
           <p className="mt-1 text-xs text-ocean-600">
             {viewMode === "board"
-              ? "Quadro por estado — arrasta o cartão para mudar de coluna."
-              : "Fila por urgência; o estado aparece no topo de cada cartão."}
+              ? "Pipeline: Nova lead → Em contacto → Proposta. Arrasta entre colunas; para Ganho ou Cancelado usa as ligações no cartão."
+              : "Só leads activas na fila; o estado aparece no topo de cada cartão. Ganho e Cancelado estão no separador Arquivo."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -747,6 +945,12 @@ export function LeadsKanban({
                         onArchive={() =>
                           void moveLeadToStatus(lead.id, "Arquivado")
                         }
+                        onMarkWon={() =>
+                          void moveLeadToStatus(lead.id, "Ganho")
+                        }
+                        onMarkLost={() =>
+                          void moveLeadToStatus(lead.id, "Cancelado")
+                        }
                       />
                     </article>
                   </li>
@@ -842,6 +1046,12 @@ export function LeadsKanban({
                             onArchive={() =>
                               void moveLeadToStatus(lead.id, "Arquivado")
                             }
+                            onMarkWon={() =>
+                              void moveLeadToStatus(lead.id, "Ganho")
+                            }
+                            onMarkLost={() =>
+                              void moveLeadToStatus(lead.id, "Cancelado")
+                            }
                           />
                         </article>
                       </li>
@@ -930,6 +1140,12 @@ export function LeadsKanban({
                           onArchive={() =>
                             void moveLeadToStatus(lead.id, "Arquivado")
                           }
+                          onMarkWon={() =>
+                            void moveLeadToStatus(lead.id, "Ganho")
+                          }
+                          onMarkLost={() =>
+                            void moveLeadToStatus(lead.id, "Cancelado")
+                          }
                         />
                       </article>
                     </li>
@@ -946,16 +1162,145 @@ export function LeadsKanban({
           <div className="rounded-2xl border border-ocean-100 bg-white p-4 shadow-sm sm:p-5">
             <p className="font-medium text-ocean-900">Arquivo</p>
             <p className="mt-1 text-sm text-ocean-600">
-              Fichas que marcaste com «Arquivar» ficam aqui, fora do quadro. Para
-              as retirar do arquivo, escolhe em que coluna devem voltar e carrega
-              em «Retirar do arquivo» em cada cartão.
+              Negócios fechados (Ganho), pedidos cancelados e fichas que
+              arquivaste sem apagar. Em cada grupo podes alterar o estado ou, no
+              arquivo geral, «Retirar do arquivo» para voltar ao quadro de
+              trabalho.
             </p>
           </div>
+          <div
+            className="flex flex-wrap gap-1 rounded-xl border border-ocean-100 bg-ocean-50/40 p-1"
+            role="tablist"
+            aria-label="Grupos do arquivo"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={archiveSubTab === "won"}
+              onClick={() => setArchiveSubTab("won")}
+              className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                archiveSubTab === "won"
+                  ? "bg-white text-ocean-900 shadow-sm"
+                  : "text-ocean-600 hover:bg-white/60 hover:text-ocean-900"
+              }`}
+            >
+              Ganhas
+              {wonSorted.length > 0 ? (
+                <span className="ml-2 rounded-full bg-emerald-100/90 px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-900">
+                  {wonSorted.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={archiveSubTab === "lost"}
+              onClick={() => setArchiveSubTab("lost")}
+              className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                archiveSubTab === "lost"
+                  ? "bg-white text-ocean-900 shadow-sm"
+                  : "text-ocean-600 hover:bg-white/60 hover:text-ocean-900"
+              }`}
+            >
+              Canceladas
+              {lostSorted.length > 0 ? (
+                <span className="ml-2 rounded-full bg-ocean-200/90 px-2 py-0.5 text-[11px] font-bold tabular-nums text-ocean-800">
+                  {lostSorted.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={archiveSubTab === "filed"}
+              onClick={() => setArchiveSubTab("filed")}
+              className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                archiveSubTab === "filed"
+                  ? "bg-white text-ocean-900 shadow-sm"
+                  : "text-ocean-600 hover:bg-white/60 hover:text-ocean-900"
+              }`}
+            >
+              Arquivo geral
+              {archivedSorted.length > 0 ? (
+                <span className="ml-2 rounded-full bg-ocean-200/90 px-2 py-0.5 text-[11px] font-bold tabular-nums text-ocean-800">
+                  {archivedSorted.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
           <div className="rounded-2xl border border-ocean-100/90 bg-ocean-50/30 p-4">
-            {archivedSorted.length === 0 ? (
+            {archiveSubTab === "won" ? (
+              wonSorted.length === 0 ? (
+                <p className="text-sm text-ocean-600">
+                  Nenhuma lead em Ganho. No Trabalho, usa «Ganho» no cartão quando
+                  fechares o negócio.
+                </p>
+              ) : (
+                <ul className="max-h-[min(70vh,840px)] space-y-4 overflow-y-auto pr-1">
+                  {wonSorted.map((lead) => (
+                    <TerminalLeadRow
+                      key={lead.id}
+                      lead={lead}
+                      orcamentoEnviosCount={orcamentoEnviosCountForLead(
+                        lead,
+                        propostaEnviosByLeadId,
+                      )}
+                      updatingId={updatingId}
+                      slaCardBorderClassName={slaCardBorder(lead)}
+                      onVerDetalhes={() => setQuizDetailLeadId(lead.id)}
+                      onSendProposal={() => setProposalLeadId(lead.id)}
+                      onOpenHistorico={() => setHistoryLeadId(lead.id)}
+                      onComposeEmail={() =>
+                        openEmailCompose(
+                          lead.id,
+                          emailPresetForCard(lead, "today"),
+                        )
+                      }
+                      onChangeStatus={(status) =>
+                        void moveLeadToStatus(lead.id, status)
+                      }
+                    />
+                  ))}
+                </ul>
+              )
+            ) : archiveSubTab === "lost" ? (
+              lostSorted.length === 0 ? (
+                <p className="text-sm text-ocean-600">
+                  Nenhuma lead cancelada. No Trabalho, usa «Cancelado» no cartão
+                  quando fizer sentido.
+                </p>
+              ) : (
+                <ul className="max-h-[min(70vh,840px)] space-y-4 overflow-y-auto pr-1">
+                  {lostSorted.map((lead) => (
+                    <TerminalLeadRow
+                      key={lead.id}
+                      lead={lead}
+                      orcamentoEnviosCount={orcamentoEnviosCountForLead(
+                        lead,
+                        propostaEnviosByLeadId,
+                      )}
+                      updatingId={updatingId}
+                      slaCardBorderClassName={slaCardBorder(lead)}
+                      onVerDetalhes={() => setQuizDetailLeadId(lead.id)}
+                      onSendProposal={() => setProposalLeadId(lead.id)}
+                      onOpenHistorico={() => setHistoryLeadId(lead.id)}
+                      onComposeEmail={() =>
+                        openEmailCompose(
+                          lead.id,
+                          emailPresetForCard(lead, "today"),
+                        )
+                      }
+                      onChangeStatus={(status) =>
+                        void moveLeadToStatus(lead.id, status)
+                      }
+                    />
+                  ))}
+                </ul>
+              )
+            ) : archivedSorted.length === 0 ? (
               <p className="text-sm text-ocean-600">
-                Nada no arquivo. No separador Trabalho, usa «Arquivar» no canto de
-                cada cartão.
+                Nada no arquivo geral. No separador Trabalho, usa «Arquivar» no
+                canto de cada cartão.
               </p>
             ) : (
               <ul className="max-h-[min(70vh,840px)] space-y-4 overflow-y-auto pr-1">
@@ -992,16 +1337,18 @@ export function LeadsKanban({
       <p className="text-xs text-ocean-500">
         {workspaceTab === "work" ? (
           <>
-            Arrasta o cartão entre colunas para mudar o estado, ou usa «Arquivar»
-            para guardar a ficha no separador Arquivo. O ícone de conversa abre o
-            histórico; o de PDF, o envio de orçamento. Em{" "}
+            Arrasta entre as três colunas do pipeline ou usa «Ganho», «Cancelado»
+            e «Arquivar» no cartão. O ícone de conversa abre o histórico; o de
+            PDF, o envio de orçamento. Em{" "}
             <strong className="font-medium text-ocean-700">Ver detalhes</strong>{" "}
             vês o pedido completo e a conversa.
           </>
         ) : (
           <>
-            No arquivo as fichas não aparecem no quadro nem na vista Hoje.
-            «Retirar do arquivo» volta a pô-las no estado que escolheres.
+            Ganhas, Canceladas e Arquivo geral têm contagens separadas nos chips.
+            No arquivo geral, «Retirar do arquivo» repõe a ficha no quadro de
+            trabalho; em Ganho/Cancelado usa «Gravar estado» para mudar para
+            qualquer coluna.
           </>
         )}
       </p>
@@ -1021,6 +1368,13 @@ export function LeadsKanban({
             setLeads((list) =>
               list.map((l) =>
                 l.id === leadId ? { ...l, notas_internas: notas } : l,
+              ),
+            )
+          }
+          onAutoFollowupSaved={(leadId, auto_followup) =>
+            setLeads((list) =>
+              list.map((l) =>
+                l.id === leadId ? { ...l, auto_followup } : l,
               ),
             )
           }
