@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  deleteLeadAction,
   markLeadCrmMessagesReadAction,
   registerLeadInboundEmailAction,
   updateLeadAutoFollowupAction,
@@ -44,6 +45,8 @@ type Props = {
   onAutoFollowupSaved?: (leadId: string, autoFollowup: boolean) => void;
   /** Após marcar mensagens CRM como vistas (remove o alerta no quadro). */
   onMessagesViewed?: (leadId: string) => void;
+  /** Após eliminar a ficha com sucesso (o pai remove do estado local). */
+  onLeadDeleted?: (leadId: string) => void;
 };
 
 function formatPedidoDate(iso: string): string {
@@ -77,6 +80,7 @@ export function LeadQuizDetailModal({
   onNotasSaved,
   onAutoFollowupSaved,
   onMessagesViewed,
+  onLeadDeleted,
 }: Props) {
   const router = useRouter();
   const [notas, setNotas] = useState(lead.notas_internas?.trim() ?? "");
@@ -91,6 +95,8 @@ export function LeadQuizDetailModal({
   const [inboundBody, setInboundBody] = useState("");
   const [inboundMsg, setInboundMsg] = useState<string | null>(null);
   const [pendingInbound, startInboundTransition] = useTransition();
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   useEffect(() => {
     setNotas(lead.notas_internas?.trim() ?? "");
@@ -100,6 +106,8 @@ export function LeadQuizDetailModal({
     setInboundMsg(null);
     setAutoFollowup(lead.auto_followup);
     setAutoFollowupMsg(null);
+    setDeleteErr(null);
+    setDeletePending(false);
   }, [lead.id, lead.notas_internas, lead.auto_followup]);
 
   useEffect(() => {
@@ -222,6 +230,28 @@ export function LeadQuizDetailModal({
         }
       })();
     });
+  }
+
+  async function handleDeleteLead() {
+    setDeleteErr(null);
+    const label = `${lead.nome} (${lead.email})`;
+    if (
+      !window.confirm(
+        `Eliminar permanentemente a lead ${label}? O histórico de emails CRM e envios de orçamento será apagado. Esta acção não pode ser anulada.`,
+      )
+    ) {
+      return;
+    }
+    setDeletePending(true);
+    const res = await deleteLeadAction(lead.id);
+    setDeletePending(false);
+    if (!res.ok) {
+      setDeleteErr(res.error);
+      return;
+    }
+    onLeadDeleted?.(lead.id);
+    onClose();
+    router.refresh();
   }
 
   return (
@@ -719,6 +749,26 @@ export function LeadQuizDetailModal({
         </div>
 
         <div className="shrink-0 border-t border-ocean-100 bg-white px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
+          <div className="mb-3 rounded-xl border border-red-200/80 bg-red-50/50 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-red-900/80">
+              Zona de risco
+            </p>
+            <p className="mt-1 text-xs text-ocean-700">
+              Elimina a ficha da base de dados. Não confundir com arquivar no
+              quadro.
+            </p>
+            {deleteErr ? (
+              <p className="mt-2 text-xs text-terracotta">{deleteErr}</p>
+            ) : null}
+            <button
+              type="button"
+              disabled={deletePending}
+              onClick={() => void handleDeleteLead()}
+              className="mt-2 w-full rounded-lg border border-red-300/90 bg-white py-2 text-xs font-semibold text-red-800 transition hover:bg-red-100/60 disabled:opacity-50"
+            >
+              {deletePending ? "A eliminar…" : "Eliminar ficha permanentemente"}
+            </button>
+          </div>
           <p className="mb-2 text-center text-[11px] text-ocean-500">
             Tecla{" "}
             <kbd className="rounded border border-ocean-200 bg-ocean-50 px-1.5 py-0.5 font-mono text-[10px] text-ocean-700">

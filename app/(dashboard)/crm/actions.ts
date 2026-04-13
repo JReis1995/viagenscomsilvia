@@ -80,6 +80,37 @@ export async function updateLeadStatusAction(
   return { ok: true };
 }
 
+const deleteLeadSchema = z.object({
+  leadId: z.string().uuid(),
+});
+
+/** Remove a ficha da base de dados (emails CRM e envios de orçamento apagam em cascata). */
+export async function deleteLeadAction(
+  leadId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = deleteLeadSchema.safeParse({ leadId });
+  if (!parsed.success) {
+    return { ok: false, error: "Dados inválidos." };
+  }
+
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+
+  const { error } = await auth.db
+    .from("leads")
+    .delete()
+    .eq("id", parsed.data.leadId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/crm");
+  return { ok: true };
+}
+
 const createManualLeadSchema = z.object({
   nome: z.string().trim().min(2, "Indica o nome (mínimo 2 caracteres).").max(120),
   email: z.string().trim().email("Email inválido.").max(255),
@@ -345,7 +376,6 @@ export async function sendLeadCrmEmailAction(
   }
 
   const { subject: resendSubject, html, text } = buildCrmConsultoraToLeadEmail(
-    lead.nome ?? "",
     parsed.data.subject,
     parsed.data.body,
   );

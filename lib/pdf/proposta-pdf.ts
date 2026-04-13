@@ -222,6 +222,189 @@ function instagramHandleLabel(): string {
   }
 }
 
+/** Largura da gaveta do ícone (envelope usa ~1,1× o tamanho nominal). */
+const CONTACT_ICON_COL_W = 16;
+const CONTACT_ICON_SIZE = 12;
+const CONTACT_ICON_GAP = 10;
+
+type PdfStrokeColor = typeof oceanMid;
+
+/**
+ * Centro óptico vertical do texto em relação à baseline (Helvetica ~ size×0,32).
+ * Usado para alinhar bullets e ícones com a primeira linha.
+ */
+function textOpticalCenterYFromBaseline(baselineY: number, fontSize: number): number {
+  return baselineY + fontSize * 0.32;
+}
+
+/** Ícones em traço (Helvetica não renderiza emoji no PDF). `centerY` = eixo vertical de alinhamento com o texto. */
+function drawContactIconInstagram(
+  page: PDFPage,
+  left: number,
+  centerY: number,
+  s: number,
+  stroke: PdfStrokeColor,
+) {
+  const bottom = centerY - s / 2;
+  const m = s * 0.08;
+  page.drawRectangle({
+    x: left + m,
+    y: bottom + m,
+    width: s - 2 * m,
+    height: s - 2 * m,
+    borderColor: stroke,
+    borderWidth: 0.55,
+  });
+  const cx = left + s / 2;
+  const cyC = bottom + s / 2;
+  const r = s * 0.185;
+  const n = 20;
+  for (let i = 0; i < n; i++) {
+    const a1 = (2 * Math.PI * i) / n;
+    const a2 = (2 * Math.PI * (i + 1)) / n;
+    page.drawLine({
+      start: { x: cx + r * Math.cos(a1), y: cyC + r * Math.sin(a1) },
+      end: { x: cx + r * Math.cos(a2), y: cyC + r * Math.sin(a2) },
+      thickness: 0.5,
+      color: stroke,
+    });
+  }
+  const d = s * 0.09;
+  page.drawRectangle({
+    x: left + s * 0.72,
+    y: bottom + s * 0.72,
+    width: d,
+    height: d,
+    color: stroke,
+  });
+}
+
+function drawContactIconEnvelope(
+  page: PDFPage,
+  left: number,
+  centerY: number,
+  s: number,
+  stroke: PdfStrokeColor,
+) {
+  const baseY = centerY - s * 0.44;
+  const w = s * 1.1;
+  const hBottom = s * 0.52;
+  page.drawRectangle({
+    x: left,
+    y: baseY,
+    width: w,
+    height: hBottom,
+    borderColor: stroke,
+    borderWidth: 0.55,
+  });
+  const topEdge = baseY + hBottom;
+  const peakY = baseY + s * 0.88;
+  const midX = left + w / 2;
+  page.drawLine({
+    start: { x: left, y: topEdge },
+    end: { x: midX, y: peakY },
+    thickness: 0.55,
+    color: stroke,
+  });
+  page.drawLine({
+    start: { x: midX, y: peakY },
+    end: { x: left + w, y: topEdge },
+    thickness: 0.55,
+    color: stroke,
+  });
+}
+
+function drawContactIconPhone(
+  page: PDFPage,
+  left: number,
+  centerY: number,
+  s: number,
+  stroke: PdfStrokeColor,
+) {
+  const h = s * 0.82;
+  const baseY = centerY - h / 2;
+  const w = s * 0.36;
+  const x = left + (s - w) / 2;
+  page.drawRectangle({
+    x,
+    y: baseY,
+    width: w,
+    height: h,
+    borderColor: stroke,
+    borderWidth: 0.55,
+  });
+  const barW = w * 0.42;
+  page.drawRectangle({
+    x: x + (w - barW) / 2,
+    y: baseY + h - 1.45,
+    width: barW,
+    height: 1.35,
+    color: stroke,
+  });
+}
+
+function drawContactIconWhatsApp(
+  page: PDFPage,
+  left: number,
+  centerY: number,
+  s: number,
+  stroke: PdfStrokeColor,
+) {
+  const baseY = centerY - s * 0.48;
+  const w = s * 0.88;
+  const h = s * 0.58;
+  const boxY = baseY + s * 0.28;
+  page.drawRectangle({
+    x: left,
+    y: boxY,
+    width: w,
+    height: h,
+    borderColor: stroke,
+    borderWidth: 0.55,
+  });
+  page.drawLine({
+    start: { x: left + s * 0.18, y: boxY },
+    end: { x: left + s * 0.06, y: baseY + s * 0.1 },
+    thickness: 0.55,
+    color: stroke,
+  });
+  page.drawLine({
+    start: { x: left + s * 0.06, y: baseY + s * 0.1 },
+    end: { x: left + s * 0.32, y: boxY + h * 0.2 },
+    thickness: 0.55,
+    color: stroke,
+  });
+}
+
+function drawContactValueRow(
+  page: PDFPage,
+  font: PDFFont,
+  cardX: number,
+  cardPad: number,
+  cy: number,
+  drawIcon: (
+    page: PDFPage,
+    left: number,
+    centerY: number,
+    s: number,
+    stroke: PdfStrokeColor,
+  ) => void,
+  valueText: string,
+) {
+  const fontSize = 9;
+  const iconLeft = cardX + cardPad;
+  const textX = iconLeft + CONTACT_ICON_COL_W + CONTACT_ICON_GAP;
+  const centerY = textOpticalCenterYFromBaseline(cy, fontSize);
+  drawIcon(page, iconLeft, centerY, CONTACT_ICON_SIZE, oceanMid);
+  page.drawText(valueText, {
+    x: textX,
+    y: cy,
+    size: fontSize,
+    font,
+    color: ink,
+  });
+}
+
 /** Imagem a cobrir rectângulo [0,pageW] x [0,pageH] (origem inferior esquerda). */
 function drawFullBleedImage(
   page: PDFPage,
@@ -488,23 +671,27 @@ export async function buildPropostaPdfBuffer(
 
     const items = inclui.length ? inclui : ["—"];
     const dotS = 4;
+    const listFontSize = 10;
+    const listTextX = splitX + colPad + 12;
     for (const item of items) {
-      const wrapped = wrapLines(item, font, 10, rightW - 16);
+      const wrapped = wrapLines(item, font, listFontSize, rightW - 16);
       for (let i = 0; i < wrapped.length; i++) {
         if (y < 120) break;
         if (i === 0) {
+          const bulletMidY = textOpticalCenterYFromBaseline(y, listFontSize);
+          const dotBottom = bulletMidY - dotS / 2;
           page.drawRectangle({
             x: splitX + colPad,
-            y: y - 6,
+            y: dotBottom,
             width: dotS,
             height: dotS,
             color: oceanMid,
           });
         }
         page.drawText(wrapped[i]!, {
-          x: splitX + colPad + 12,
+          x: listTextX,
           y,
-          size: 10,
+          size: listFontSize,
           font,
           color: ink,
         });
@@ -1108,43 +1295,55 @@ export async function buildPropostaPdfBuffer(
     }
     cy -= 16;
 
-    const ig = instagramHandleLabel();
-    page.drawText(`Instagram  ${ig}`, {
-      x: cardX + cardPad,
-      y: cy,
-      size: 9,
-      font: fontBold,
-      color: oceanMid,
-    });
-    cy -= LINE + 2;
-    page.drawText(`Email  ${CONSULTORA_PUBLIC_EMAIL}`, {
-      x: cardX + cardPad,
-      y: cy,
-      size: 9,
+    const ig = pdfSafeText(instagramHandleLabel());
+    const emailLine = pdfSafeText(CONSULTORA_PUBLIC_EMAIL);
+    const waLine = wa ? pdfSafeText(wa) : "";
+
+    drawContactValueRow(
+      page,
       font,
-      color: ink,
-    });
+      cardX,
+      cardPad,
+      cy,
+      drawContactIconInstagram,
+      ig,
+    );
+    cy -= LINE + 2;
+
+    drawContactValueRow(
+      page,
+      font,
+      cardX,
+      cardPad,
+      cy,
+      drawContactIconEnvelope,
+      emailLine,
+    );
     cy -= LINE + 2;
 
     if (tel) {
-      page.drawText(`Telefone  ${tel}`, {
-        x: cardX + cardPad,
-        y: cy,
-        size: 9,
+      drawContactValueRow(
+        page,
         font,
-        color: ink,
-      });
+        cardX,
+        cardPad,
+        cy,
+        drawContactIconPhone,
+        tel,
+      );
       cy -= LINE + 2;
     }
 
-    if (wa) {
-      page.drawText(`WhatsApp  ${wa}`, {
-        x: cardX + cardPad,
-        y: cy,
-        size: 9,
+    if (waLine) {
+      drawContactValueRow(
+        page,
         font,
-        color: ink,
-      });
+        cardX,
+        cardPad,
+        cy,
+        drawContactIconWhatsApp,
+        waLine,
+      );
       cy -= LINE + 2;
     }
 

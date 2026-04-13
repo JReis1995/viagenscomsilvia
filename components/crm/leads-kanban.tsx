@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { updateLeadStatusAction } from "@/app/(dashboard)/crm/actions";
+import {
+  deleteLeadAction,
+  updateLeadStatusAction,
+} from "@/app/(dashboard)/crm/actions";
 import {
   LeadEmailComposeModal,
   type EmailComposePreset,
@@ -40,6 +43,22 @@ import {
 import type { LeadBoardRow } from "@/types/lead";
 
 type ArchiveSubTab = "won" | "lost" | "filed";
+
+/** Destaque no cartão quando há email inbound por ler (`has_unread_messages`). */
+function leadUnreadCardRingClass(lead: LeadBoardRow): string {
+  return Boolean(lead.has_unread_messages)
+    ? "ring-2 ring-terracotta/50 ring-offset-2 ring-offset-white"
+    : "";
+}
+
+/** Durante arrasto, o anel de «email novo» cede ao anel de arrasto. */
+function leadKanbanDragOrUnreadRing(
+  lead: LeadBoardRow,
+  dragging: boolean,
+): string {
+  if (dragging) return "ring-2 ring-ocean-400/50";
+  return leadUnreadCardRingClass(lead);
+}
 
 function workspaceTabForLeadStatus(
   status: LeadBoardStatus,
@@ -185,6 +204,8 @@ type LeadCardInnerProps = {
   onArchive?: () => void;
   onMarkWon?: () => void;
   onMarkLost?: () => void;
+  /** Elimina a ficha permanentemente (após confirmação no pai). */
+  onDelete?: () => void;
 };
 
 function LeadCardInner({
@@ -198,6 +219,7 @@ function LeadCardInner({
   onArchive,
   onMarkWon,
   onMarkLost,
+  onDelete,
 }: LeadCardInnerProps) {
   const wa = useMemo(
     () => whatsappHrefForLead(lead.telemovel, lead.nome),
@@ -227,20 +249,7 @@ function LeadCardInner({
   }
 
   return (
-    <div className="relative pr-5">
-      {hasUnread ? (
-        <div
-          className="absolute right-0 top-0 flex items-center gap-1"
-          title="Nova mensagem por email"
-        >
-          <span className="sr-only">Nova mensagem por email</span>
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 shadow-sm ring-2 ring-white"
-            aria-hidden
-          />
-        </div>
-      ) : null}
-
+    <div className="relative">
       {showStatusLine ? (
         <div className="mb-2 inline-flex max-w-full rounded-lg border border-ocean-200 bg-ocean-50 px-2.5 py-1">
           <span className="text-xs font-semibold text-ocean-900">
@@ -259,6 +268,29 @@ function LeadCardInner({
       >
         {lead.email}
       </p>
+
+      {hasUnread ? (
+        <div
+          className="mt-2 flex flex-col gap-0.5 rounded-lg border border-terracotta/40 bg-terracotta/10 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-2"
+          role="status"
+          title="Resposta recebida por email. Abre Histórico para ler — o alerta desaparece ao abrir."
+        >
+          <span className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-terracotta/50 opacity-60 motion-reduce:hidden" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-terracotta" />
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-terracotta">
+              Novo email
+            </span>
+          </span>
+          <span className="text-[10.5px] leading-snug text-ocean-800 sm:border-l sm:border-terracotta/25 sm:pl-2">
+            Resposta da lead — abre{" "}
+            <strong className="font-semibold text-ocean-900">Histórico</strong>{" "}
+            para ver.
+          </span>
+        </div>
+      ) : null}
 
       {lead.promo_campaigns?.discount_percent != null ? (
         <p
@@ -384,6 +416,15 @@ function LeadCardInner({
           >
             Ver detalhes
           </button>
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="text-xs font-medium text-red-700/90 underline decoration-red-200 underline-offset-2 hover:text-red-900"
+            >
+              Eliminar
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -407,6 +448,7 @@ function ArchiveLeadRow({
   onOpenHistorico,
   onComposeEmail,
   onRestore,
+  onDelete,
   slaCardBorderClassName,
 }: {
   lead: LeadBoardRow;
@@ -417,6 +459,7 @@ function ArchiveLeadRow({
   onOpenHistorico: () => void;
   onComposeEmail: () => void;
   onRestore: (status: LeadBoardStatus) => void;
+  onDelete?: () => void;
   slaCardBorderClassName: string;
 }) {
   const [restoreTo, setRestoreTo] = useState<LeadBoardStatus>("Nova Lead");
@@ -425,7 +468,7 @@ function ArchiveLeadRow({
   return (
     <li>
       <article
-        className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorderClassName} ${
+        className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorderClassName} ${leadUnreadCardRingClass(lead)} ${
           busy ? "opacity-60" : ""
         }`}
       >
@@ -437,6 +480,7 @@ function ArchiveLeadRow({
           onSendProposal={onSendProposal}
           onOpenHistorico={onOpenHistorico}
           onComposeEmail={onComposeEmail}
+          onDelete={onDelete}
         />
         <div className="mt-3 border-t border-ocean-100/90 pt-3">
           <p className="text-[11px] font-medium text-ocean-600">
@@ -489,6 +533,7 @@ function TerminalLeadRow({
   onOpenHistorico,
   onComposeEmail,
   onChangeStatus,
+  onDelete,
   slaCardBorderClassName,
 }: {
   lead: LeadBoardRow;
@@ -499,6 +544,7 @@ function TerminalLeadRow({
   onOpenHistorico: () => void;
   onComposeEmail: () => void;
   onChangeStatus: (status: LeadBoardStatus) => void;
+  onDelete?: () => void;
   slaCardBorderClassName: string;
 }) {
   const [nextStatus, setNextStatus] = useState<LeadBoardStatus>(() =>
@@ -515,7 +561,7 @@ function TerminalLeadRow({
   return (
     <li>
       <article
-        className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorderClassName} ${
+        className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorderClassName} ${leadUnreadCardRingClass(lead)} ${
           busy ? "opacity-60" : ""
         }`}
       >
@@ -532,6 +578,7 @@ function TerminalLeadRow({
               ? () => onChangeStatus("Arquivado")
               : undefined
           }
+          onDelete={onDelete}
         />
         <div className="mt-3 border-t border-ocean-100/90 pt-3">
           <p className="text-[11px] font-medium text-ocean-600">
@@ -707,6 +754,40 @@ export function LeadsKanban({
     },
     [],
   );
+
+  const deleteLead = useCallback(async (leadId: string) => {
+    const row = leadsRef.current.find((l) => l.id === leadId);
+    if (!row) return;
+    const label = `${row.nome} (${row.email})`;
+    if (
+      !window.confirm(
+        `Eliminar permanentemente a lead ${label}? O histórico de emails CRM e envios de orçamento será apagado. Esta acção não pode ser anulada.`,
+      )
+    ) {
+      return;
+    }
+
+    setUpdatingId(leadId);
+    setError(null);
+
+    const res = await deleteLeadAction(leadId);
+
+    setUpdatingId(null);
+
+    if (!res.ok) {
+      setError(
+        res.error ||
+          "Não foi possível eliminar a lead. Verifica a ligação e tenta de novo.",
+      );
+      return;
+    }
+
+    setLeads((list) => list.filter((l) => l.id !== leadId));
+    setQuizDetailLeadId((id) => (id === leadId ? null : id));
+    setProposalLeadId((id) => (id === leadId ? null : id));
+    setComposeState((s) => (s?.leadId === leadId ? null : s));
+    setHistoryLeadId((id) => (id === leadId ? null : id));
+  }, []);
 
   const proposalLead = useMemo(
     () => (proposalLeadId ? leads.find((l) => l.id === proposalLeadId) : null),
@@ -893,10 +974,10 @@ export function LeadsKanban({
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span
-            className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+            className="h-2 w-2 shrink-0 rounded-full bg-terracotta"
             aria-hidden
           />
-          Ponto vermelho · email novo por responder
+          Etiqueta «Novo email» + anel terracota · resposta inbound por ler
         </span>
         <span className="text-ocean-500">
           (Ajusta estes limiares em Conteúdo do site → Quadro de leads.)
@@ -914,7 +995,7 @@ export function LeadsKanban({
                 return (
                   <li key={lead.id}>
                     <article
-                      className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorder(lead)} ${
+                      className={`rounded-xl bg-white p-3 shadow-sm ${slaCardBorder(lead)} ${leadUnreadCardRingClass(lead)} ${
                         updatingId === lead.id ? "opacity-60" : ""
                       }`}
                     >
@@ -951,6 +1032,7 @@ export function LeadsKanban({
                         onMarkLost={() =>
                           void moveLeadToStatus(lead.id, "Cancelado")
                         }
+                        onDelete={() => void deleteLead(lead.id)}
                       />
                     </article>
                   </li>
@@ -1018,10 +1100,10 @@ export function LeadsKanban({
                             setDragLeadId(null);
                             setDragOverColumn(null);
                           }}
-                          className={`rounded-xl bg-white p-3 shadow-sm transition ${slaCardBorder(lead)} ${
+                          className={`rounded-xl bg-white p-3 shadow-sm transition ${slaCardBorder(lead)} ${leadKanbanDragOrUnreadRing(lead, dragging)} ${
                             updatingId === lead.id ? "opacity-60" : ""
                           } ${
-                            dragging ? "opacity-50 ring-2 ring-ocean-400/50" : ""
+                            dragging ? "opacity-50" : ""
                           } ${
                             updatingId === lead.id
                               ? "cursor-wait"
@@ -1052,6 +1134,7 @@ export function LeadsKanban({
                             onMarkLost={() =>
                               void moveLeadToStatus(lead.id, "Cancelado")
                             }
+                            onDelete={() => void deleteLead(lead.id)}
                           />
                         </article>
                       </li>
@@ -1109,10 +1192,10 @@ export function LeadsKanban({
                           setDragLeadId(null);
                           setDragOverColumn(null);
                         }}
-                        className={`rounded-xl bg-white p-3 shadow-sm transition ${slaCardBorder(lead)} ${
+                        className={`rounded-xl bg-white p-3 shadow-sm transition ${slaCardBorder(lead)} ${leadKanbanDragOrUnreadRing(lead, dragging)} ${
                           updatingId === lead.id ? "opacity-60" : ""
                         } ${
-                          dragging ? "opacity-50 ring-2 ring-ocean-400/50" : ""
+                          dragging ? "opacity-50" : ""
                         } ${
                           updatingId === lead.id
                             ? "cursor-wait"
@@ -1146,6 +1229,7 @@ export function LeadsKanban({
                           onMarkLost={() =>
                             void moveLeadToStatus(lead.id, "Cancelado")
                           }
+                          onDelete={() => void deleteLead(lead.id)}
                         />
                       </article>
                     </li>
@@ -1259,6 +1343,7 @@ export function LeadsKanban({
                       onChangeStatus={(status) =>
                         void moveLeadToStatus(lead.id, status)
                       }
+                      onDelete={() => void deleteLead(lead.id)}
                     />
                   ))}
                 </ul>
@@ -1293,6 +1378,7 @@ export function LeadsKanban({
                       onChangeStatus={(status) =>
                         void moveLeadToStatus(lead.id, status)
                       }
+                      onDelete={() => void deleteLead(lead.id)}
                     />
                   ))}
                 </ul>
@@ -1326,6 +1412,7 @@ export function LeadsKanban({
                     onRestore={(status) =>
                       void moveLeadToStatus(lead.id, status)
                     }
+                    onDelete={() => void deleteLead(lead.id)}
                   />
                 ))}
               </ul>
@@ -1338,8 +1425,9 @@ export function LeadsKanban({
         {workspaceTab === "work" ? (
           <>
             Arrasta entre as três colunas do pipeline ou usa «Ganho», «Cancelado»
-            e «Arquivar» no cartão. O ícone de conversa abre o histórico; o de
-            PDF, o envio de orçamento. Em{" "}
+            e «Arquivar» no cartão. «Eliminar» apaga a ficha na base de dados (há
+            confirmação). O ícone de conversa abre o histórico; o de PDF, o
+            envio de orçamento. Em{" "}
             <strong className="font-medium text-ocean-700">Ver detalhes</strong>{" "}
             vês o pedido completo e a conversa.
           </>
@@ -1379,6 +1467,12 @@ export function LeadsKanban({
             )
           }
           onMessagesViewed={handleMessagesViewed}
+          onLeadDeleted={(leadId) => {
+            setLeads((list) => list.filter((l) => l.id !== leadId));
+            setProposalLeadId((id) => (id === leadId ? null : id));
+            setComposeState((s) => (s?.leadId === leadId ? null : s));
+            setHistoryLeadId((id) => (id === leadId ? null : id));
+          }}
         />
       ) : null}
 

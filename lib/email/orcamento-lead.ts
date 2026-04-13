@@ -1,7 +1,19 @@
-import { escapeHtml } from "@/lib/email/html";
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
-import { BRAND_MARK } from "@/lib/site/brand";
+import {
+  buildIconFooterPlainText,
+  buildIconFooterRowHtml,
+  getCrmEmailFooterIconItems,
+} from "@/lib/email/email-footer-contact";
+import { escapeHtml } from "@/lib/email/html";
 import { resolveProposalImageUrls } from "@/lib/pdf/travel-assets";
+import { BRAND_MARK } from "@/lib/site/brand";
+
+function summaryIconRow(symbol: string, innerHtml: string): string {
+  return `<tr>
+    <td style="width:30px;vertical-align:top;padding:0 10px 16px 0;font-size:17px;line-height:1.35;">${symbol}</td>
+    <td style="padding:0 0 16px 0;vertical-align:top;">${innerHtml}</td>
+  </tr>`;
+}
 
 export function buildOrcamentoLeadEmail(
   nomeLead: string,
@@ -13,30 +25,62 @@ export function buildOrcamentoLeadEmail(
     ? p.inclui.map((i) => `- ${i}`).join("\n")
     : "- (ver PDF em anexo)";
 
+  const footerItems = getCrmEmailFooterIconItems();
+  const footerTextBlock = buildIconFooterPlainText(footerItems);
+
   const text = `Olá ${nomeLead},
 
 Em anexo tens a proposta em PDF com o resumo da viagem.
 
 Resumo:
-Destino: ${p.destino}
-Datas: ${p.datas}
-Inclui:
+📍 Destino: ${p.destino}
+🗓 Datas: ${p.datas}
+📋 Inclui:
 ${lista}
-Total: ${p.valor_total}
-${p.notas?.trim() ? `Notas: ${p.notas}\n` : ""}
+💶 Total: ${p.valor_total}
+${p.notas?.trim() ? `📝 Notas: ${p.notas}\n` : ""}
 Qualquer dúvida ou ajuste, responde a esta mensagem.
+
+${footerTextBlock}
 
 ${BRAND_MARK}`;
 
   const bannerSrc = escapeHtml(resolveProposalImageUrls(p).bannerUrl);
   const incluiHtml = p.inclui.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 0 0;"><tr><td style="padding:0;">${p.inclui
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 0 0;">${p.inclui
         .map(
           (i) =>
-            `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px 0;"><tr><td style="width:20px;vertical-align:top;color:#d9785c;font-size:14px;">●</td><td style="font-size:15px;line-height:1.5;color:#0f3d39;">${escapeHtml(i)}</td></tr></table>`,
+            `<tr><td style="width:18px;vertical-align:top;color:#d9785c;font-size:13px;">▸</td><td style="font-size:15px;line-height:1.5;color:#0f3d39;padding-bottom:6px;">${escapeHtml(i)}</td></tr>`,
         )
-        .join("")}</td></tr></table>`
-    : `<p style="margin:12px 0 0 0;font-size:14px;color:#1d7a72;">Detalhes completos no PDF anexo.</p>`;
+        .join("")}</table>`
+    : `<p style="margin:8px 0 0 0;font-size:14px;color:#1d7a72;">Detalhes completos no PDF anexo.</p>`;
+
+  const notasBlock = p.notas?.trim()
+    ? summaryIconRow(
+        "📝",
+        `<p style="margin:0;font-size:14px;color:#1d7a72;line-height:1.55;">${escapeHtml(p.notas.trim())}</p>`,
+      )
+    : "";
+
+  const summaryInner = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    ${summaryIconRow(
+      "📍",
+      `<p style="margin:0;font-size:15px;line-height:1.45;color:#0f3d39;">${escapeHtml(p.destino)}</p>`,
+    )}
+    ${summaryIconRow(
+      "🗓",
+      `<p style="margin:0;font-size:15px;line-height:1.45;color:#0f3d39;">${escapeHtml(p.datas)}</p>`,
+    )}
+    ${summaryIconRow("📋", `<div style="margin:0;">${incluiHtml}</div>`)}
+    ${summaryIconRow(
+      "💶",
+      `<p style="margin:0;font-size:20px;font-weight:600;color:#0f3d39;">${escapeHtml(p.valor_total)}</p>`,
+    )}
+    ${notasBlock}
+  </table>`;
+
+  const iconFooterHtml = buildIconFooterRowHtml(footerItems);
 
   const html = `
 <!DOCTYPE html>
@@ -79,19 +123,14 @@ ${BRAND_MARK}`;
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f3ef;border-radius:12px;border:1px solid #d4ebe7;">
                 <tr>
                   <td style="padding:20px 22px;">
-                    <p style="margin:0 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d9785c;">Destino</p>
-                    <p style="margin:0 0 18px 0;font-size:15px;color:#0f3d39;">${escapeHtml(p.destino)}</p>
-                    <p style="margin:0 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d9785c;">Datas</p>
-                    <p style="margin:0 0 18px 0;font-size:15px;color:#0f3d39;">${escapeHtml(p.datas)}</p>
-                    <p style="margin:0 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d9785c;">Inclui</p>
-                    ${incluiHtml}
-                    <p style="margin:20px 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d9785c;">Investimento</p>
-                    <p style="margin:0;font-size:20px;font-weight:600;color:#0f3d39;">${escapeHtml(p.valor_total)}</p>
-                    ${p.notas?.trim() ? `<p style="margin:18px 0 10px 0;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d9785c;">Notas</p><p style="margin:0;font-size:14px;color:#1d7a72;line-height:1.55;">${escapeHtml(p.notas.trim())}</p>` : ""}
+                    ${summaryInner}
                   </td>
                 </tr>
               </table>
               <p style="margin:24px 0 0 0;font-size:14px;color:#1d7a72;">Para alterações ou dúvidas, responde a esta mensagem.</p>
+              <p style="margin:20px 0 0 0;padding-top:14px;border-top:1px solid #d4ebe7;font-size:13px;line-height:1.5;color:#1d7a72;text-align:center;">
+                ${iconFooterHtml}
+              </p>
             </td>
           </tr>
           <tr>

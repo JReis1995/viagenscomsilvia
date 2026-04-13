@@ -1,6 +1,10 @@
 import { escapeHtml } from "@/lib/email/html";
+import {
+  buildIconFooterPlainText,
+  buildIconFooterRowHtml,
+  getCrmEmailFooterIconItems,
+} from "@/lib/email/email-footer-contact";
 import { BRAND_MARK } from "@/lib/site/brand";
-import { getCrmEmailSignatureLinks } from "@/lib/site/social";
 
 function bodyTextToHtmlParagraphs(text: string): string {
   const blocks = text.trim().split(/\n{2,}/);
@@ -15,39 +19,29 @@ function bodyTextToHtmlParagraphs(text: string): string {
 
 /**
  * Email minimalista alinhado com propostas (cores oceano / terracotta).
+ * O corpo já deve incluir a saudação (ex.: «Olá Maria,») — não duplicar o nome aqui.
  */
 export function buildCrmConsultoraToLeadEmail(
-  nomeLead: string,
   subjectLine: string,
   bodyText: string,
 ): { subject: string; html: string; text: string } {
   const subj = subjectLine.trim();
   const subject = `${subj} · ${BRAND_MARK}`;
-  const greeting = nomeLead.trim()
-    ? `Olá <strong>${escapeHtml(nomeLead.trim())}</strong>,`
-    : "Olá,";
   const bodyHtml = bodyTextToHtmlParagraphs(bodyText.trim());
 
-  const links = getCrmEmailSignatureLinks();
-  const linkSep =
-    '<span style="color:#b8d4cf;padding:0 6px;">·</span>';
-  const subtleLink = (href: string, label: string) =>
-    `<a href="${escapeHtml(href)}" style="color:#1d7a72;text-decoration:underline;text-underline-offset:2px;">${escapeHtml(label)}</a>`;
-
+  const footerItems = getCrmEmailFooterIconItems();
+  const iconRow = buildIconFooterRowHtml(footerItems);
   const signatureHtml = `
-              <p style="margin:20px 0 0 0;padding-top:16px;border-top:1px solid #d4ebe7;font-size:13px;line-height:1.55;color:#1d7a72;">
-                ${subtleLink(links.clientAreaUrl, "Área de cliente")}<span style="color:#5a7a76;"> — consulta o estado do pedido e as mensagens com login.</span>
+              <p style="margin:22px 0 0 0;padding-top:16px;border-top:1px solid #d4ebe7;font-size:13px;line-height:1.55;color:#1d7a72;text-align:center;">
+                ${iconRow}
               </p>
-              <p style="margin:10px 0 0 0;font-size:12px;line-height:1.6;color:#5a7a76;">
-                ${subtleLink(links.siteOrigin, "Site")}${linkSep}${subtleLink(links.instagramUrl, "Instagram")}${linkSep}${subtleLink(links.tiktokUrl, "TikTok")}
-              </p>
-              <p style="margin:6px 0 0 0;font-size:12px;line-height:1.5;">
-                ${subtleLink(`mailto:${links.consultoraEmail}`, links.consultoraEmail)}
+              <p style="margin:12px 0 0 0;font-size:13px;line-height:1.55;color:#1d7a72;text-align:center;">
+                Podes responder a este email com dúvidas ou pedidos de ajuste.
               </p>`;
 
-  const textSig = `\n\nÁrea de cliente: ${links.clientAreaUrl}\nSite: ${links.siteOrigin}\nInstagram: ${links.instagramUrl}\nTikTok: ${links.tiktokUrl}\n${links.consultoraEmail}`;
+  const textSig = `\n\n${buildIconFooterPlainText(footerItems)}`;
 
-  const text = `${subj}\n\nOlá ${nomeLead.trim() || "cliente"},\n\n${bodyText.trim()}\n\nPodes responder a este email com dúvidas ou pedidos de ajuste.${textSig}\n\n—\n${BRAND_MARK}`;
+  const text = `${subj}\n\n${bodyText.trim()}\n\nPodes responder a este email com dúvidas ou pedidos de ajuste.${textSig}\n\n—\n${BRAND_MARK}`;
 
   const html = `
 <!DOCTYPE html>
@@ -77,9 +71,7 @@ export function buildCrmConsultoraToLeadEmail(
           </tr>
           <tr>
             <td style="padding:8px 28px 8px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-              <p style="margin:0 0 18px 0;font-size:16px;line-height:1.6;color:#1d7a72;">${greeting}</p>
               ${bodyHtml}
-              <p style="margin:22px 0 0 0;font-size:14px;line-height:1.55;color:#1d7a72;">Podes responder a este email com dúvidas ou pedidos de ajuste.</p>
               ${signatureHtml}
             </td>
           </tr>
