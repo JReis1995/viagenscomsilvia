@@ -3,6 +3,10 @@ import {
   isQuizClimaKey,
   type QuizClimaKey,
 } from "@/lib/marketing/quiz-clima";
+import {
+  formatJanelaDatasLabel,
+  parsePedidoDataIso,
+} from "@/lib/marketing/pedido-datas-url";
 import type { PublishedPost } from "@/types/post";
 
 /** Limite do campo `destino_sonho` no formulário / API. */
@@ -34,6 +38,8 @@ export type PedidoOrcamentoPrefill = {
   vibe?: string;
   /** Clima escolhido no hero ou via `pedido_clima`. */
   clima?: QuizClimaKey;
+  /** Texto para pré-preencher «Janela de datas» no pedido (ex.: ida e regresso). */
+  janelaDatasPrefill?: string;
 };
 
 /**
@@ -55,6 +61,26 @@ export function buildPedidoOrcamentoHrefFromPost(post: PublishedPost): string {
   return `/?${params.toString()}#pedido-orcamento`;
 }
 
+export function buildPedidoDetalheHrefFromPost(
+  post: PublishedPost,
+  currentSearch?: URLSearchParams | string,
+): string {
+  const params =
+    typeof currentSearch === "string"
+      ? new URLSearchParams(currentSearch)
+      : currentSearch
+        ? new URLSearchParams(currentSearch.toString())
+        : new URLSearchParams();
+  params.set("pedido_post", post.id);
+  params.set("pedido_destino", clip(post.titulo, DESTINO_QUERY_MAX));
+  const contextoPartes: string[] = [];
+  if (post.descricao?.trim()) contextoPartes.push(post.descricao.trim());
+  if (post.preco_desde?.trim()) contextoPartes.push(`Valor indicativo: ${post.preco_desde.trim()}`);
+  const contexto = clip(contextoPartes.join(" · "), CONTEXTO_QUERY_MAX);
+  if (contexto) params.set("pedido_contexto", contexto);
+  return `/pedido?${params.toString()}`;
+}
+
 type SearchParamsLike = Record<string, string | string[] | undefined>;
 
 export function parsePedidoPrefillFromSearchParams(
@@ -70,6 +96,11 @@ export function parsePedidoPrefillFromSearchParams(
   const clima =
     rawClima && isQuizClimaKey(rawClima) ? rawClima : undefined;
 
+  const rawInicio = parsePedidoDataIso(firstParam(sp.pedido_data_inicio));
+  const rawFim = parsePedidoDataIso(firstParam(sp.pedido_data_fim));
+  const janelaDatasPrefill =
+    formatJanelaDatasLabel(rawInicio, rawFim) ?? undefined;
+
   const lines: string[] = [];
   if (destino) lines.push(destino);
   if (contexto) lines.push(contexto);
@@ -79,7 +110,8 @@ export function parsePedidoPrefillFromSearchParams(
   }
 
   const hasDestinoOrPost = !!(destinoSonho.trim() || postId);
-  if (!hasDestinoOrPost && !vibe && !clima) return null;
+  const hasDates = !!janelaDatasPrefill;
+  if (!hasDestinoOrPost && !vibe && !clima && !hasDates) return null;
 
   return {
     destinoSonho: destinoSonho.trim(),
@@ -87,5 +119,6 @@ export function parsePedidoPrefillFromSearchParams(
     postId,
     vibe,
     clima,
+    janelaDatasPrefill,
   };
 }

@@ -68,6 +68,23 @@ PROJETO_CONTEXTO.md (este ficheiro)
   - Opcional: campos em `configuracoes_globais` para copy global (em vez de só `.env`).
 - **Agendamento + email massivo** (pedido futuro): fila de campanhas, respeito RGPD, utilizadores com “login” — ainda não modelado na BD.
 
+## Sprint variantes — Fase 1 (base de dados + fetch)
+
+- Novas migrações SQL em `sql/`:
+  - `sprint_variants_01_posts_extend.sql`
+  - `sprint_variants_02_post_hotels.sql`
+  - `sprint_variants_03_post_hotel_media.sql`
+  - `sprint_variants_04_post_extras.sql`
+  - `sprint_variants_05_post_flight_options.sql`
+  - `sprint_variants_06_leads_post_choice.sql`
+- `posts` passa a incluir `slug`, `preco_base_eur` e `has_variants` (mantendo compatibilidade com `preco_desde`).
+- Novas tabelas relacionais para variantes: `post_hotels`, `post_hotel_media`, `post_extras`, `post_flight_options`.
+- `leads` passa a suportar `post_id` (FK opcional) e `post_choice` (jsonb de escolha/snapshot).
+- Tipos/fetch atualizados para suportar detalhe de publicação por slug:
+  - `lib/posts/post-variants-types.ts`
+  - `lib/posts/fetch-publicacao-by-slug.ts`
+  - `lib/posts/fetch-published.ts` mantém fallback para schemas antigos.
+
 ---
 
 ## SQL executado no Supabase (referência única)

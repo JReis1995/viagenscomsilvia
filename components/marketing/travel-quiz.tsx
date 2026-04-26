@@ -22,6 +22,10 @@ import {
   type QuizClimaKey,
 } from "@/lib/marketing/quiz-clima";
 import {
+  formatJanelaDatasLabel,
+  parsePedidoDataIso,
+} from "@/lib/marketing/pedido-datas-url";
+import {
   parsePedidoClimaParam,
   replacePedidoClimaInUrl,
 } from "@/lib/marketing/pedido-clima-url";
@@ -84,6 +88,9 @@ function formWithPrefill(prefill: PedidoOrcamentoPrefill | null): FormData {
   if (prefill?.clima) {
     base.clima = prefill.clima;
   }
+  if (prefill?.janelaDatasPrefill?.trim()) {
+    base.janela_datas = prefill.janelaDatasPrefill.trim();
+  }
   return base;
 }
 
@@ -122,6 +129,19 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const prevStepRef = useRef(0);
   const closeImmersiveRef = useRef<() => void>(() => {});
+  const pedidoAdultos = Number.parseInt(searchParams.get("pedido_adultos") ?? "", 10);
+  const pedidoCriancas = Number.parseInt(searchParams.get("pedido_criancas") ?? "", 10);
+  const pedidoIdadesCriancas = (searchParams.get("pedido_idades_criancas") ?? "")
+    .split(",")
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n >= 0 && n <= 17);
+  const pedidoAnimaisRaw = (searchParams.get("pedido_animais_estimacao") ?? "").toLowerCase();
+  const pedidoAnimais =
+    pedidoAnimaisRaw === "sim"
+      ? true
+      : pedidoAnimaisRaw === "nao"
+        ? false
+        : undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -148,6 +168,16 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
     const c = parsePedidoClimaParam(sp.get("pedido_clima"));
     setForm((f) => ({ ...f, clima: c ?? "" }));
   }, [pedidoClimaQuery]);
+
+  const pedidoDatasQuery = searchParams.toString();
+  useEffect(() => {
+    const sp = new URLSearchParams(pedidoDatasQuery);
+    const ji = parsePedidoDataIso(sp.get("pedido_data_inicio"));
+    const jf = parsePedidoDataIso(sp.get("pedido_data_fim"));
+    const label = formatJanelaDatasLabel(ji, jf);
+    if (!label) return;
+    setForm((f) => ({ ...f, janela_datas: label }));
+  }, [pedidoDatasQuery]);
 
   useEffect(() => {
     if (step >= 1 && step <= LAST_STEP) {
@@ -377,6 +407,17 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
           janela_datas: form.janela_datas.trim(),
           flexibilidade_datas: form.flexibilidade_datas,
           ja_tem_voos_hotel: form.ja_tem_voos_hotel,
+          pedido_adultos:
+            Number.isFinite(pedidoAdultos) && pedidoAdultos >= 1 && pedidoAdultos <= 20
+              ? pedidoAdultos
+              : undefined,
+          pedido_criancas:
+            Number.isFinite(pedidoCriancas) && pedidoCriancas >= 0 && pedidoCriancas <= 10
+              ? pedidoCriancas
+              : undefined,
+          pedido_idades_criancas:
+            pedidoIdadesCriancas.length > 0 ? pedidoIdadesCriancas : undefined,
+          pedido_animais_estimacao: pedidoAnimais,
           website_url: honeypot,
           ...getLeadMarketingAttributionPayload(),
           ...campaignTokenPayloadForLead(),
@@ -458,6 +499,21 @@ export function TravelQuiz({ prefill = null, quizCopy, crm }: Props) {
           email: em,
           telemovel: tel,
           destino_sonho: dest,
+          janela_datas:
+            form.janela_datas.trim().length >= 2
+              ? form.janela_datas.trim()
+              : undefined,
+          pedido_adultos:
+            Number.isFinite(pedidoAdultos) && pedidoAdultos >= 1 && pedidoAdultos <= 20
+              ? pedidoAdultos
+              : undefined,
+          pedido_criancas:
+            Number.isFinite(pedidoCriancas) && pedidoCriancas >= 0 && pedidoCriancas <= 10
+              ? pedidoCriancas
+              : undefined,
+          pedido_idades_criancas:
+            pedidoIdadesCriancas.length > 0 ? pedidoIdadesCriancas : undefined,
+          pedido_animais_estimacao: pedidoAnimais,
           website_url: honeypot,
           ...getLeadMarketingAttributionPayload(),
           ...campaignTokenPayloadForLead(),

@@ -6,6 +6,48 @@ export type LeadPromoCampaignEmbed = {
   link_publicacao: string;
 };
 
+export type LeadPostChoiceSnapshotItem = {
+  id: string;
+  label: string;
+  preco_delta_eur?: number | null;
+  preco_label?: string | null;
+};
+
+export type LeadPostChoice = {
+  hotel_id?: string;
+  extra_ids?: string[];
+  flight_option_id?: string;
+  notas_voo?: string;
+  checkin_date?: string;
+  checkout_date?: string;
+  rooms?: Array<{
+    room_option_id: string;
+    qty: number;
+  }>;
+  rooms_required?: number;
+  computed_total_eur?: number | null;
+  currency?: "EUR";
+  computed_at?: string;
+  snapshot?: {
+    hotel?: LeadPostChoiceSnapshotItem;
+    extras?: LeadPostChoiceSnapshotItem[];
+    flight?: LeadPostChoiceSnapshotItem;
+  };
+};
+
+export type LeadPostChoiceFlightPrefill = {
+  id: string;
+  label: string;
+  origem_iata: string | null;
+  destino_iata: string | null;
+  data_partida: string | null;
+  data_regresso: string | null;
+  cia: string | null;
+  classe: string | null;
+  bagagem_text: string | null;
+  descricao: string | null;
+};
+
 /** Colunas do quadro CRM — valores gravados em `leads.status`. */
 export type LeadBoardRow = {
   id: string;
@@ -33,6 +75,19 @@ export type LeadBoardRow = {
   flexibilidade_datas?: string | null;
   /** Chaves: nada | so_voos | so_hotel | ambos */
   ja_tem_voos_hotel?: string | null;
+  /** Pedido do hero/search (topo) */
+  pedido_adultos?: number | null;
+  pedido_criancas?: number | null;
+  pedido_idades_criancas?: number[] | null;
+  pedido_quartos?: number | null;
+  pedido_animais_estimacao?: boolean | null;
+  post_id?: string | null;
+  post_choice?: LeadPostChoice | null;
+  post_choice_hotel_thumb_url?: string | null;
+  post_choice_hotel_gallery_urls?: string[] | null;
+  post_choice_flight_prefill?: LeadPostChoiceFlightPrefill | null;
+  post_titulo?: string | null;
+  post_slug_destino?: string | null;
   auto_followup: boolean;
   pedido_rapido: boolean;
   utm_source: string | null;

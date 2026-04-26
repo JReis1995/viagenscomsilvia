@@ -9,6 +9,7 @@ import { toggleWishlistPost } from "@/app/actions/wishlist-post";
 type Props = {
   postId: string;
   initialSaved: boolean;
+  hotelOptions?: string[];
   /** Mais baixo quando há badge «Oferta» à esquerda */
   compactTop?: boolean;
 };
@@ -16,6 +17,7 @@ type Props = {
 export function FeedWishlistButton({
   postId,
   initialSaved,
+  hotelOptions = [],
   compactTop,
 }: Props) {
   const [saved, setSaved] = useState(initialSaved);
@@ -28,7 +30,21 @@ export function FeedWishlistButton({
     e.stopPropagation();
     setMsg(null);
     setPending(true);
-    const res = await toggleWishlistPost(postId);
+    let preferredHotel: string | undefined;
+    if (!saved && hotelOptions.length > 0) {
+      const suggestion = hotelOptions.slice(0, 4).join(", ");
+      const answer = window.prompt(
+        suggestion
+          ? `Hotel preferido (opcional)\nSugestões: ${suggestion}`
+          : "Hotel preferido (opcional)",
+        "",
+      );
+      if (answer != null) {
+        const normalized = answer.trim();
+        preferredHotel = normalized || undefined;
+      }
+    }
+    const res = await toggleWishlistPost(postId, preferredHotel);
     setPending(false);
     if (!res.ok) {
       if (

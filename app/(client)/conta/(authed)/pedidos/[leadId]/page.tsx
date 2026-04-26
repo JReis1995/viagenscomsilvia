@@ -295,7 +295,7 @@ function RelatedPostCard({
     const id = getYoutubeVideoId(post.media_url);
     if (id) src = getYoutubeThumbnailUrl(id);
   }
-  const href = post.link_cta?.trim() || `/#inspiracoes`;
+  const href = post.link_cta?.trim() || `/#publicacoes`;
   const video = tipo === "video" || isLikelyVideoUrl(post.media_url);
 
   return (

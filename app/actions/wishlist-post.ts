@@ -10,6 +10,7 @@ export type ToggleWishlistPostResult =
 
 export async function toggleWishlistPost(
   postId: string,
+  preferredHotel?: string,
 ): Promise<ToggleWishlistPostResult> {
   if (
     !postId ||
@@ -50,6 +51,10 @@ export async function toggleWishlistPost(
   const { error } = await supabase.from("wishlist_items").insert({
     user_id: user.id,
     post_id: postId,
+    destino_label:
+      typeof preferredHotel === "string" && preferredHotel.trim()
+        ? `Hotel preferido: ${preferredHotel.trim().slice(0, 180)}`
+        : null,
   });
 
   if (error) {

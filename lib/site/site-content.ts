@@ -271,7 +271,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     homeOrderCsv: DEFAULT_HOME_ORDER_CSV,
   },
   hero: {
-    eyebrow: "Consultoria de viagens · Boutique",
+    eyebrow: "Consultoria de viagens",
     line1: "O mundo não espera.",
     line2Italic: "A tua próxima viagem",
     line3: "começa aqui.",
@@ -323,7 +323,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   quiz: {
     introCardTitle: "Vamos desenhar a tua próxima viagem",
     introCardBody:
-      "Poucos passos, sem pressa: começamos pelos teus dados de contacto e depois pelo clima, estilo e sonho de viagem — para a Sílvia te responder com uma proposta à medida. O formulário abre em ecrã inteiro para te concentrares.",
+      "Partilha os teus dados de contacto e as observações principais da viagem que imaginas. A Sílvia analisa cada pedido manualmente e responde com uma proposta ajustada ao teu perfil.",
     introCardCtaLabel: "Começar o meu pedido",
     eyebrow: "Da inspiração ao plano",
     title: "Inspiraste-te com uma publicação? Agora faz esse sonho ganhar forma",
@@ -392,7 +392,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       "Revê os detalhes — depois é connosco: a Sílvia trata do resto.",
     pedidoRapidoCardTitle: "Preferes não continuar com todos os passos agora?",
     pedidoRapidoCardBody:
-      "Envia um pedido rápido com o contacto que já indicaste e uma linha sobre o destino — a Sílvia trata do resto. O formulário completo continua disponível se quiseres voltar depois.",
+      "Envia um pedido rápido com o teu contacto e uma observação sobre a viagem ideal — a Sílvia trata do resto.",
     pedidoRapidoCardCta: "Usar pedido rápido (contacto + destino)",
     pedidoRapidoModalTitle: "Pedido rápido",
     pedidoRapidoModalBody:
@@ -464,34 +464,34 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     items: [],
   },
   howWeWork: {
-    eyebrow: "Transparência",
+    eyebrow: "Processo por variantes",
     title: "Como trabalhamos",
     subtitle:
-      "Um processo claro desde o primeiro contacto — sem surpresas desagradáveis e com espaço para afinar contigo.",
+      "Um fluxo simples: escolhes base, variantes e preferências; nós validamos e afinamos a proposta contigo.",
     steps: [
       {
-        title: "1. Envias o pedido",
-        body: "No site, com o máximo de detalhe que conseguires: datas, estilo, orçamento e quem viaja.",
+        title: "1. Escolhes a publicação e personalizas",
+        body: "No detalhe da publicação ajustas as opções da viagem, defines datas, passageiros e quantos quartos precisas.",
       },
       {
-        title: "2. Leitura humana",
-        body: "A Sílvia lê o pedido em pessoa e responde por email ou telemóvel — normalmente nas próximas 24–48 horas úteis.",
+        title: "2. Registamos o pedido com contexto real",
+        body: "As escolhas ficam guardadas no CRM com resumo completo para evitar retrabalho e acelerar a resposta.",
       },
       {
-        title: "3. Primeira proposta",
-        body: "Ideias e valores alinhados com o que pediste; depois afinamos juntas até encaixar no que imaginas.",
+        title: "3. Validação humana da Sílvia",
+        body: "A Sílvia revê pessoalmente o pedido, confirma disponibilidade e ajusta detalhes para chegar a uma proposta viável.",
       },
       {
-        title: "4. Reserva e acompanhamento",
-        body: "Quando decidires, tratamos dos fornecedores escolhidos e mantemo-nos disponíveis para dúvidas até à viagem.",
+        title: "4. Ajustes finais e reserva",
+        body: "Depois da tua confirmação, fechamos fornecedores e acompanhamos todo o processo até à viagem.",
       },
     ],
     firstContactTitle: "O que inclui o primeiro contacto",
     firstContactBody:
-      "Confirmação de que recebemos o teu pedido, esclarecimento de dúvidas essenciais e uma primeira linha de ideias ou perguntas de afinação — ainda não é um pacote fechado, é o arranque de uma conversa profissional.",
+      "Confirmação do pedido, validação rápida das escolhas feitas nas variantes e perguntas essenciais para fechar o cenário certo.",
     timingsTitle: "Prazos que podes contar",
     timingsBody:
-      "Resposta inicial: tipicamente 24–48 horas úteis após o pedido. Propostas mais elaboradas podem precisar de mais um ou dois dias, consoante destinos e disponibilidade — avisamos-te se for o caso.",
+      "Resposta inicial: normalmente em 24–48 horas úteis. Cenários com múltiplas variantes ou datas sensíveis podem exigir mais tempo, e avisamos sempre.",
   },
   socialFeed: {
     eyebrow: "Instagram",

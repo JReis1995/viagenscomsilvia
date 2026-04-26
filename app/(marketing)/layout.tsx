@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { AnalyticsScripts } from "@/components/marketing/analytics-scripts";
-import { SocialLinks } from "@/components/marketing/social-links";
 import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import { createClient } from "@/lib/supabase/server";
 
@@ -48,16 +47,16 @@ export default async function MarketingLayout({
           </Link>
           <nav className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
             <Link
-              href="/#inspiracoes"
+              href="/#publicacoes"
               className="rounded-2xl px-3 py-2 text-sm font-medium text-ocean-700 transition-colors hover:bg-ocean-50 sm:px-4"
             >
-              Inspirações
+              Publicações
             </Link>
             <Link
-              href="/#pedido-orcamento"
+              href="/#publicacoes"
               className="rounded-2xl px-3 py-2 text-sm font-medium text-ocean-700 transition-colors hover:bg-ocean-50 sm:px-4"
             >
-              Pedir orçamento
+              Começar por publicações
             </Link>
             <Link
               href="/mapa"
@@ -75,11 +74,14 @@ export default async function MarketingLayout({
         </div>
       </header>
       <div className="flex-1">{children}</div>
-      <footer className="border-t border-ocean-100/60 py-10">
-        <SocialLinks className="mb-6" />
-        <p className="text-center text-sm text-ocean-600">
-          © {new Date().getFullYear()} Viagens com Sílvia
-        </p>
+      <footer className="mt-16 bg-black text-white">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <div className="border-t border-white/15 pt-5">
+            <p className="text-center text-sm text-white/80">
+              © {new Date().getFullYear()} Viagens com Sílvia
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

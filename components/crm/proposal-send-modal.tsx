@@ -274,13 +274,28 @@ function buildPayload(
 export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
   const router = useRouter();
   const prev = parseDetalhesProposta(lead.detalhes_proposta);
+  const choice = lead.post_choice;
+  const snapshot = choice?.snapshot;
+  const prefillFlight = lead.post_choice_flight_prefill;
+  const prefillGallery = lead.post_choice_hotel_gallery_urls ?? [];
+  const prefillDestino =
+    snapshot?.hotel?.label?.trim() ||
+    snapshot?.flight?.label?.trim() ||
+    lead.destino_sonho?.trim() ||
+    "";
+  const prefillTitulo =
+    lead.post_titulo?.trim() ||
+    (snapshot?.hotel?.label?.trim()
+      ? `Proposta para ${snapshot.hotel.label.trim()}`
+      : "") ||
+    "Proposta de viagem personalizada";
   const previewObjectUrlRef = useRef<string | null>(null);
 
   const [titulo, setTitulo] = useState(
-    prev?.titulo ?? "Proposta de viagem personalizada",
+    prev?.titulo ?? prefillTitulo,
   );
   const [destino, setDestino] = useState(
-    prev?.destino ?? lead.destino_sonho ?? "",
+    prev?.destino ?? prefillDestino,
   );
   const [datas, setDatas] = useState(prev?.datas ?? "");
   const [inclui, setInclui] = useState(prev?.inclui?.join("\n") ?? "");
@@ -289,7 +304,9 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
   const [atualizarEstado, setAtualizarEstado] = useState(true);
   const [dataInicio, setDataInicio] = useState(prev?.data_inicio ?? "");
   const [dataFim, setDataFim] = useState(prev?.data_fim ?? "");
-  const [slugDestino, setSlugDestino] = useState(prev?.slug_destino ?? "");
+  const [slugDestino, setSlugDestino] = useState(
+    prev?.slug_destino ?? lead.post_slug_destino ?? "",
+  );
   const [lat, setLat] = useState(
     prev?.latitude != null ? String(prev.latitude) : "",
   );
@@ -300,7 +317,7 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
     prev?.links_uteis?.map((l) => `${l.label} | ${l.url}`).join("\n") ?? "",
   );
   const [galeriaRaw, setGaleriaRaw] = useState(
-    prev?.galeria_urls?.join("\n") ?? "",
+    prev?.galeria_urls?.join("\n") ?? prefillGallery.join("\n"),
   );
   const [capaPreset, setCapaPreset] = useState<CapaPreset>(
     prev?.capa_preset ?? "neutral",
@@ -319,22 +336,57 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
   );
 
   const pv = prev?.pdf_voos;
-  const [vooTituloRota, setVooTituloRota] = useState(pv?.titulo_rota ?? "");
-  const [vooIdaTitulo, setVooIdaTitulo] = useState(pv?.ida?.titulo ?? "");
-  const [vooIdaMeta, setVooIdaMeta] = useState(pv?.ida?.meta ?? "");
-  const [vooIdaPartida, setVooIdaPartida] = useState(pv?.ida?.partida ?? "");
-  const [vooIdaChegada, setVooIdaChegada] = useState(pv?.ida?.chegada ?? "");
-  const [vooVoltaTitulo, setVooVoltaTitulo] = useState(
-    pv?.volta?.titulo ?? "",
+  const routeLabelFromIata =
+    prefillFlight?.origem_iata && prefillFlight?.destino_iata
+      ? `${prefillFlight.origem_iata} ↔ ${prefillFlight.destino_iata}`
+      : "";
+  const idaMetaPrefill = [
+    prefillFlight?.data_partida ? `Data: ${prefillFlight.data_partida}` : "",
+    prefillFlight?.cia ? `Companhia: ${prefillFlight.cia}` : "",
+    prefillFlight?.classe ? `Classe: ${prefillFlight.classe.replaceAll("_", " ")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  const voltaMetaPrefill = [
+    prefillFlight?.data_regresso ? `Data: ${prefillFlight.data_regresso}` : "",
+    prefillFlight?.cia ? `Companhia: ${prefillFlight.cia}` : "",
+    prefillFlight?.classe ? `Classe: ${prefillFlight.classe.replaceAll("_", " ")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  const [vooTituloRota, setVooTituloRota] = useState(
+    pv?.titulo_rota ??
+      prefillFlight?.label ??
+      snapshot?.flight?.label ??
+      routeLabelFromIata,
   );
-  const [vooVoltaMeta, setVooVoltaMeta] = useState(pv?.volta?.meta ?? "");
+  const [vooIdaTitulo, setVooIdaTitulo] = useState(pv?.ida?.titulo ?? "Voo de ida");
+  const [vooIdaMeta, setVooIdaMeta] = useState(pv?.ida?.meta ?? idaMetaPrefill);
+  const [vooIdaPartida, setVooIdaPartida] = useState(
+    pv?.ida?.partida ??
+      (prefillFlight?.origem_iata ? `Partida: ${prefillFlight.origem_iata}` : ""),
+  );
+  const [vooIdaChegada, setVooIdaChegada] = useState(
+    pv?.ida?.chegada ??
+      (prefillFlight?.destino_iata ? `Chegada: ${prefillFlight.destino_iata}` : ""),
+  );
+  const [vooVoltaTitulo, setVooVoltaTitulo] = useState(
+    pv?.volta?.titulo ?? "Voo de regresso",
+  );
+  const [vooVoltaMeta, setVooVoltaMeta] = useState(
+    pv?.volta?.meta ?? voltaMetaPrefill,
+  );
   const [vooVoltaPartida, setVooVoltaPartida] = useState(
-    pv?.volta?.partida ?? "",
+    pv?.volta?.partida ??
+      (prefillFlight?.destino_iata ? `Partida: ${prefillFlight.destino_iata}` : ""),
   );
   const [vooVoltaChegada, setVooVoltaChegada] = useState(
-    pv?.volta?.chegada ?? "",
+    pv?.volta?.chegada ??
+      (prefillFlight?.origem_iata ? `Chegada: ${prefillFlight.origem_iata}` : ""),
   );
-  const [vooBagagem, setVooBagagem] = useState(pv?.bagagem ?? "");
+  const [vooBagagem, setVooBagagem] = useState(
+    pv?.bagagem ?? prefillFlight?.bagagem_text ?? prefillFlight?.descricao ?? "",
+  );
 
   const [destaquesSlots, setDestaquesSlots] = useState<PdfDestaque[]>(() => {
     const from = prev?.pdf_destaques ?? [];
@@ -1167,20 +1219,6 @@ export function ProposalSendModal({ lead, onClose, onViewQuiz }: Props) {
                     />
                   </label>
                 </div>
-                <label className="mt-3 block text-xs">
-                  <span className="text-ocean-600">
-                    Slug destino (cruzar com publicações)
-                  </span>
-                  <input
-                    className="mt-1 w-full rounded-lg border border-ocean-200 px-2 py-2 text-sm"
-                    value={slugDestino}
-                    onChange={(e) => {
-                      setSlugDestino(e.target.value);
-                      invalidatePreview();
-                    }}
-                    placeholder="ex.: maldivas"
-                  />
-                </label>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="block text-xs">
                     <span className="text-ocean-600">Latitude</span>

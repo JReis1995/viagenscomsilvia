@@ -555,12 +555,16 @@ function parseOptionalCoord(v: unknown): number | null {
 const crmPostBase = z.object({
   tipo: z.enum(["promocao", "video", "inspiracao"]),
   titulo: z.string().min(1).max(500),
+  slug: z.string().max(220).optional().nullable(),
   descricao: z.string().max(4000).optional().nullable(),
   media_url: z.string().min(1).max(2048),
   preco_desde: z.string().max(200).optional().nullable(),
+  preco_base_eur: z.union([z.number().min(0).max(1000000), z.null()]).optional(),
+  has_variants: z.boolean().optional().default(false),
   link_cta: z.string().max(2048).optional().nullable(),
   status: z.boolean(),
   data_publicacao: z.string().min(1).max(40),
+  data_fim_publicacao: z.string().max(40).optional().nullable(),
   ordem_site: z.coerce.number().int().min(-999999).max(999999),
   membros_apenas: z.boolean().optional().default(false),
   slug_destino: z.string().max(200).optional().nullable(),
@@ -574,7 +578,32 @@ const crmPostBase = z.object({
   ),
   feed_vibe_slugs: z.array(z.string().max(48)).max(12).optional().default([]),
   hover_line: z.string().max(400).optional().nullable(),
-});
+  pets_allowed: z.union([z.boolean(), z.null()]).optional(),
+  capacidade_min: z.union([z.number().int().min(1).max(40), z.null()]).optional(),
+  capacidade_max: z.union([z.number().int().min(1).max(40), z.null()]).optional(),
+  variants_publish_confirmed: z.boolean().optional(),
+}).refine(
+  (d) =>
+    d.capacidade_min == null ||
+    d.capacidade_max == null ||
+    d.capacidade_max >= d.capacidade_min,
+  {
+    message: "A capacidade máxima deve ser igual ou superior à mínima.",
+    path: ["capacidade_max"],
+  },
+).refine(
+  (d) => {
+    if (!d.data_fim_publicacao || !d.data_fim_publicacao.trim()) return true;
+    const start = new Date(d.data_publicacao);
+    const end = new Date(d.data_fim_publicacao);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return end > start;
+  },
+  {
+    message: "A data de fim deve ser posterior à data de publicação.",
+    path: ["data_fim_publicacao"],
+  },
+);
 
 export type CrmPostInput = z.infer<typeof crmPostBase>;
 
@@ -594,16 +623,21 @@ export async function createCrmPostAction(
   const lat = row.data.latitude ?? null;
   const lng = row.data.longitude ?? null;
   const slug = row.data.slug_destino?.trim().toLowerCase() || null;
+  const postSlug = row.data.slug?.trim().toLowerCase() || null;
 
   const { error } = await auth.db.from("posts").insert({
     tipo: row.data.tipo,
     titulo: row.data.titulo,
+    slug: postSlug,
     descricao: row.data.descricao?.trim() || null,
     media_url: row.data.media_url.trim(),
     preco_desde: row.data.preco_desde?.trim() || null,
+    preco_base_eur: row.data.preco_base_eur ?? null,
+    has_variants: row.data.has_variants ?? false,
     link_cta: row.data.link_cta?.trim() || null,
     status: row.data.status,
     data_publicacao: row.data.data_publicacao,
+    data_fim_publicacao: row.data.data_fim_publicacao?.trim() || null,
     ordem_site: row.data.ordem_site,
     membros_apenas: row.data.membros_apenas,
     slug_destino: slug,
@@ -611,6 +645,10 @@ export async function createCrmPostAction(
     longitude: lng,
     feed_vibe_slugs: row.data.feed_vibe_slugs ?? [],
     hover_line: row.data.hover_line?.trim() || null,
+    pets_allowed:
+      typeof row.data.pets_allowed === "boolean" ? row.data.pets_allowed : null,
+    capacidade_min: row.data.capacidade_min ?? null,
+    capacidade_max: row.data.capacidade_max ?? null,
   });
 
   if (error) {
@@ -667,18 +705,49 @@ export async function updateCrmPostAction(
   const lat = row.data.latitude ?? null;
   const lng = row.data.longitude ?? null;
   const slug = row.data.slug_destino?.trim().toLowerCase() || null;
+  const postSlug = row.data.slug?.trim().toLowerCase() || null;
+
+  if (row.data.status && row.data.has_variants) {
+    const [hotelsCount, extrasCount, flightsCount] = await Promise.all([
+      auth.db
+        .from("post_hotels")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", id),
+      auth.db
+        .from("post_extras")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", id),
+      auth.db
+        .from("post_flight_options")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", id),
+    ]);
+    const variantsCount =
+      (hotelsCount.count ?? 0) + (extrasCount.count ?? 0) + (flightsCount.count ?? 0);
+    if (variantsCount > 0 && row.data.variants_publish_confirmed !== true) {
+      return {
+        ok: false,
+        error:
+          "Confirma a validação das variantes antes de publicar esta publicação.",
+      };
+    }
+  }
 
   const { error } = await auth.db
     .from("posts")
     .update({
       tipo: row.data.tipo,
       titulo: row.data.titulo,
+      slug: postSlug,
       descricao: row.data.descricao?.trim() || null,
       media_url: row.data.media_url.trim(),
       preco_desde: row.data.preco_desde?.trim() || null,
+      preco_base_eur: row.data.preco_base_eur ?? null,
+      has_variants: row.data.has_variants ?? false,
       link_cta: row.data.link_cta?.trim() || null,
       status: row.data.status,
       data_publicacao: row.data.data_publicacao,
+      data_fim_publicacao: row.data.data_fim_publicacao?.trim() || null,
       ordem_site: row.data.ordem_site,
       membros_apenas: row.data.membros_apenas,
       slug_destino: slug,
@@ -686,6 +755,12 @@ export async function updateCrmPostAction(
       longitude: lng,
       feed_vibe_slugs: row.data.feed_vibe_slugs ?? [],
       hover_line: row.data.hover_line?.trim() || null,
+      pets_allowed:
+        typeof row.data.pets_allowed === "boolean"
+          ? row.data.pets_allowed
+          : null,
+      capacidade_min: row.data.capacidade_min ?? null,
+      capacidade_max: row.data.capacidade_max ?? null,
     })
     .eq("id", id);
 
@@ -697,6 +772,51 @@ export async function updateCrmPostAction(
   revalidatePath("/crm/publicacoes");
   revalidatePath("/mapa");
   return { ok: true };
+}
+
+export async function createCrmPostDraftAction(): Promise<
+  { ok: true; id: string } | { ok: false; error: string }
+> {
+  const auth = await requireConsultora();
+  if (!auth.ok || !auth.db) {
+    return { ok: false, error: auth.error };
+  }
+  const nowIso = new Date().toISOString();
+  const { data, error } = await auth.db
+    .from("posts")
+    .insert({
+      tipo: "inspiracao",
+      titulo: "Rascunho de publicação",
+      slug: null,
+      descricao: null,
+      media_url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+      preco_desde: null,
+      preco_base_eur: null,
+      has_variants: true,
+      link_cta: null,
+      status: false,
+      data_publicacao: nowIso,
+      data_fim_publicacao: null,
+      ordem_site: 0,
+      membros_apenas: false,
+      slug_destino: null,
+      latitude: null,
+      longitude: null,
+      feed_vibe_slugs: [],
+      hover_line: null,
+      pets_allowed: null,
+      capacidade_min: null,
+      capacidade_max: null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    return { ok: false, error: error?.message ?? "Não foi possível criar rascunho." };
+  }
+
+  revalidatePath("/crm/publicacoes");
+  return { ok: true, id: data.id as string };
 }
 
 export async function deleteCrmPostAction(
@@ -748,7 +868,7 @@ export async function exportLeadsCsvAction(): Promise<
   const { data, error } = await auth.db
     .from("leads")
     .select(
-      "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, notas_internas, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path",
+      "id, nome, email, telemovel, status, data_pedido, data_envio_orcamento, detalhes_proposta, notas_internas, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, pedido_adultos, pedido_criancas, pedido_idades_criancas, pedido_quartos, pedido_animais_estimacao, post_choice, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path",
     )
     .order("data_pedido", { ascending: false });
 
@@ -789,6 +909,15 @@ export async function exportLeadsCsvAction(): Promise<
     "flexibilidade_rotulo",
     "ja_tem_voos_hotel",
     "voos_hotel_rotulo",
+    "hotel_escolhido",
+    "extras_count",
+    "voo_label",
+    "total_eur",
+    "pedido_adultos",
+    "pedido_criancas",
+    "pedido_idades_criancas",
+    "pedido_animais_estimacao",
+    "pedido_quartos",
     "pedido_rapido",
     "auto_followup",
     "utm_source",
@@ -806,6 +935,32 @@ export async function exportLeadsCsvAction(): Promise<
     const flexKey = r.flexibilidade_datas as string | null | undefined;
     const voosKey = r.ja_tem_voos_hotel as string | null | undefined;
     const climaKey = r.clima_preferido as string | null | undefined;
+    const postChoice = (r.post_choice ?? null) as
+      | {
+          computed_total_eur?: unknown;
+          snapshot?: {
+            hotel?: { label?: unknown };
+            extras?: Array<unknown>;
+            flight?: { label?: unknown };
+          };
+        }
+      | null;
+    const hotelLabel =
+      typeof postChoice?.snapshot?.hotel?.label === "string"
+        ? postChoice.snapshot.hotel.label.trim()
+        : "";
+    const extrasCount = Array.isArray(postChoice?.snapshot?.extras)
+      ? postChoice.snapshot.extras.length
+      : 0;
+    const vooLabel =
+      typeof postChoice?.snapshot?.flight?.label === "string"
+        ? postChoice.snapshot.flight.label.trim()
+        : "";
+    const totalEur =
+      typeof postChoice?.computed_total_eur === "number" &&
+      Number.isFinite(postChoice.computed_total_eur)
+        ? postChoice.computed_total_eur
+        : "";
     const det = parseDetalhesProposta(r.detalhes_proposta);
     const valorUltimoEnvio = det?.valor_total?.trim() ?? "";
     const leadId = r.id as string;
@@ -838,6 +993,25 @@ export async function exportLeadsCsvAction(): Promise<
         csvEscapeCell(flexibilidadeLabel(flexKey, site.quiz)),
         csvEscapeCell(voosKey),
         csvEscapeCell(voosHotelLabel(voosKey, site.quiz)),
+        csvEscapeCell(hotelLabel),
+        csvEscapeCell(extrasCount),
+        csvEscapeCell(vooLabel),
+        csvEscapeCell(totalEur),
+        csvEscapeCell(r.pedido_adultos),
+        csvEscapeCell(r.pedido_criancas),
+        csvEscapeCell(
+          Array.isArray(r.pedido_idades_criancas)
+            ? r.pedido_idades_criancas.join("|")
+            : "",
+        ),
+        csvEscapeCell(
+          r.pedido_animais_estimacao === true
+            ? "sim"
+            : r.pedido_animais_estimacao === false
+              ? "nao"
+              : "",
+        ),
+        csvEscapeCell(r.pedido_quartos),
         csvEscapeCell(r.pedido_rapido === true ? "sim" : "nao"),
         csvEscapeCell(r.auto_followup === true ? "sim" : "nao"),
         csvEscapeCell(r.utm_source),

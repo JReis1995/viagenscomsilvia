@@ -397,11 +397,9 @@ export function CrmSiteVisualEditor({ initial, posts }: Props) {
               crm={{
                 hero: {
                   patchHero: (f, v) => patch("hero", f, v),
-                  patchQuiz: (f, v) => patch("quiz", f, v),
                 },
                 feed: {
                   patchFeed: (f, v) => patch("feed", f, v),
-                  patchFeatured: (f, v) => patch("featuredVideo", f, v),
                 },
                 social: {
                   patch: (f, v) => patch("socialFeed", f, v),

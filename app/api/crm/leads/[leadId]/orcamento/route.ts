@@ -5,7 +5,10 @@ import { isConsultoraEmailAsync } from "@/lib/auth/consultora";
 import type { DetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildOrcamentoLeadEmail } from "@/lib/email/orcamento-lead";
 import { resolveCrmEmailReplyTo } from "@/lib/email/resend-reply-to";
-import { buildPropostaPdfBuffer } from "@/lib/pdf/proposta-pdf";
+import {
+  applyProposalPdfFallbacks,
+  buildPropostaPdfBuffer,
+} from "@/lib/pdf/proposta-pdf";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 import {
@@ -14,6 +17,103 @@ import {
 } from "@/lib/validations/orcamento";
 
 const PROPOSTA_STATUS = "Proposta enviada";
+type ServiceRoleClient = Extract<
+  ReturnType<typeof tryCreateServiceRoleClient>,
+  { ok: true }
+>["client"];
+
+async function enrichGalleryForPdf(
+  db: ServiceRoleClient,
+  leadId: string,
+  details: DetalhesProposta,
+): Promise<DetalhesProposta> {
+  const { data: leadRow } = await db
+    .from("leads")
+    .select("post_choice, promo_campaigns!promo_campaign_id ( link_publicacao )")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  const postChoice = (leadRow?.post_choice as {
+    hotel_id?: string;
+    flight_option_id?: string;
+  } | null) ?? null;
+  const hotelId = typeof postChoice?.hotel_id === "string"
+    ? postChoice.hotel_id
+    : "";
+  const flightOptionId = typeof postChoice?.flight_option_id === "string"
+    ? postChoice.flight_option_id
+    : "";
+
+  let hotelGalleryUrls: string[] = [];
+  if ((!details.galeria_urls || details.galeria_urls.length === 0) && hotelId) {
+    const { data: mediaRows } = await db
+      .from("post_hotel_media")
+      .select("kind, url, ordem")
+      .eq("hotel_id", hotelId)
+      .order("ordem", { ascending: true })
+      .limit(10);
+    hotelGalleryUrls = (mediaRows ?? [])
+      .filter((row) => row.kind === "image")
+      .map((row) => (typeof row.url === "string" ? row.url.trim() : ""))
+      .filter((url) => url.length > 0);
+  }
+
+  let flightOption: {
+    label: string | null;
+    origem_iata: string | null;
+    destino_iata: string | null;
+    data_partida: string | null;
+    data_regresso: string | null;
+    cia: string | null;
+    classe: string | null;
+    bagagem_text: string | null;
+    descricao: string | null;
+  } | null = null;
+  if (flightOptionId) {
+    const { data: flightRow } = await db
+      .from("post_flight_options")
+      .select(
+        "label, origem_iata, destino_iata, data_partida, data_regresso, cia, classe, bagagem_text, descricao",
+      )
+      .eq("id", flightOptionId)
+      .maybeSingle();
+    if (flightRow) {
+      flightOption = flightRow;
+    }
+  }
+
+  const detailsWithVariants = applyProposalPdfFallbacks(details, {
+    hotelGalleryUrls,
+    flightOption,
+  });
+
+  if (detailsWithVariants.galeria_urls && detailsWithVariants.galeria_urls.length > 0) {
+    return detailsWithVariants;
+  }
+
+  let slug = detailsWithVariants.slug_destino?.trim().toLowerCase() ?? "";
+  if (!slug) {
+    const url = (leadRow?.promo_campaigns as { link_publicacao?: string } | null)?.link_publicacao;
+    if (typeof url === "string" && url.includes("/")) {
+      const parts = url.split("/").filter(Boolean);
+      slug = (parts[parts.length - 1] ?? "").toLowerCase();
+    }
+  }
+  if (!slug) return detailsWithVariants;
+
+  const { data: posts } = await db
+    .from("posts")
+    .select("media_url")
+    .eq("slug_destino", slug)
+    .eq("status", true)
+    .order("data_publicacao", { ascending: false })
+    .limit(6);
+  const gallery = (posts ?? [])
+    .map((p) => (typeof p.media_url === "string" ? p.media_url.trim() : ""))
+    .filter((u) => u.length > 0);
+  if (gallery.length === 0) return detailsWithVariants;
+  return { ...detailsWithVariants, galeria_urls: gallery };
+}
 
 export async function POST(
   request: Request,
@@ -155,7 +255,8 @@ export async function POST(
 
   let pdfBuffer: Buffer;
   try {
-    pdfBuffer = await buildPropostaPdfBuffer(lead.nome, detalhes);
+    const enriched = await enrichGalleryForPdf(db, leadId, detalhes);
+    pdfBuffer = await buildPropostaPdfBuffer(lead.nome, enriched);
   } catch (e) {
     console.error("[orcamento] PDF:", e);
     return NextResponse.json(

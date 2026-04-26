@@ -1443,6 +1443,7 @@ export function LeadsKanban({
 
       {quizDetailLead ? (
         <LeadQuizDetailModal
+          key={quizDetailLead.id}
           lead={quizDetailLead}
           quizCopy={quizCopy}
           onClose={() => setQuizDetailLeadId(null)}

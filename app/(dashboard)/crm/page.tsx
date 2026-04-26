@@ -12,7 +12,7 @@ import { parseSlaHours } from "@/lib/crm/lead-sla";
 import { createClient } from "@/lib/supabase/server";
 import { tryCreateServiceRoleClient } from "@/lib/supabase/service-role";
 import { DEFAULT_SITE_CONTENT } from "@/lib/site/site-content";
-import type { LeadBoardRow } from "@/types/lead";
+import type { LeadBoardRow, LeadPostChoiceFlightPrefill } from "@/types/lead";
 
 export const metadata: Metadata = {
   title: "Painel",
@@ -20,6 +20,20 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+
+function isMissingOptionalLeadColumns(message: string | undefined): boolean {
+  const m = (message ?? "").toLowerCase();
+  return (
+    m.includes("column leads.pedido_adultos does not exist") ||
+    m.includes("column leads.pedido_criancas does not exist") ||
+    m.includes("column leads.pedido_idades_criancas does not exist") ||
+    m.includes("column leads.pedido_quartos does not exist") ||
+    m.includes("could not find the 'pedido_quartos' column") ||
+    m.includes("column leads.pedido_animais_estimacao does not exist") ||
+    m.includes("column leads.post_id does not exist") ||
+    m.includes("column leads.post_choice does not exist")
+  );
+}
 
 export default async function CrmHomePage() {
   const supabase = await createClient();
@@ -46,14 +60,25 @@ export default async function CrmHomePage() {
   let error: { message: string } | null = null;
 
   if (sr.ok) {
-    const res = await sr.client
+    const primary = await sr.client
       .from("leads")
       .select(
-        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages, promo_campaign_id, promo_campaigns!promo_campaign_id ( discount_percent, titulo_publicacao, expires_at, link_publicacao )",
+        "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, pedido_adultos, pedido_criancas, pedido_idades_criancas, pedido_quartos, pedido_animais_estimacao, post_id, post_choice, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages, promo_campaign_id, promo_campaigns!promo_campaign_id ( discount_percent, titulo_publicacao, expires_at, link_publicacao )",
       )
       .order("data_pedido", { ascending: false });
-    data = res.data as LeadBoardRow[] | null;
-    error = res.error;
+    if (primary.error && isMissingOptionalLeadColumns(primary.error.message)) {
+      const fallback = await sr.client
+        .from("leads")
+        .select(
+          "id, nome, email, telemovel, status, data_pedido, data_ultimo_followup, data_envio_orcamento, notas_internas, detalhes_proposta, clima_preferido, vibe, companhia, destino_sonho, orcamento_estimado, janela_datas, flexibilidade_datas, ja_tem_voos_hotel, auto_followup, pedido_rapido, utm_source, utm_medium, utm_campaign, utm_content, utm_term, referrer, landing_path, has_unread_messages, promo_campaign_id, promo_campaigns!promo_campaign_id ( discount_percent, titulo_publicacao, expires_at, link_publicacao )",
+        )
+        .order("data_pedido", { ascending: false });
+      data = fallback.data as LeadBoardRow[] | null;
+      error = fallback.error;
+    } else {
+      data = primary.data as LeadBoardRow[] | null;
+      error = primary.error;
+    }
   } else {
     error = { message: sr.message };
   }
@@ -80,6 +105,159 @@ export default async function CrmHomePage() {
   }
 
   const leads = data ?? [];
+  const hotelIds = Array.from(
+    new Set(
+      leads
+        .map((lead) => {
+          const postChoice = lead.post_choice as
+            | { hotel_id?: unknown; snapshot?: { hotel?: { id?: unknown } } }
+            | null
+            | undefined;
+          if (typeof postChoice?.hotel_id === "string") return postChoice.hotel_id;
+          if (typeof postChoice?.snapshot?.hotel?.id === "string") {
+            return postChoice.snapshot.hotel.id;
+          }
+          return null;
+        })
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const thumbByHotelId = new Map<string, string>();
+  const galleryByHotelId = new Map<string, string[]>();
+  if (sr.ok && hotelIds.length > 0) {
+    const res = await sr.client
+      .from("post_hotel_media")
+      .select("hotel_id, url, kind, ordem")
+      .in("hotel_id", hotelIds)
+      .order("hotel_id", { ascending: true })
+      .order("ordem", { ascending: true });
+    if (res.error) {
+      console.error("[crm] post_hotel_media:", res.error.message);
+    } else {
+      const rows = res.data ?? [];
+      for (const row of rows) {
+        const hotelId = row.hotel_id as string;
+        const url = typeof row.url === "string" ? row.url.trim() : "";
+        if (!url) continue;
+        if (row.kind === "image") {
+          const existingGallery = galleryByHotelId.get(hotelId) ?? [];
+          existingGallery.push(url);
+          galleryByHotelId.set(hotelId, existingGallery);
+        }
+        if (thumbByHotelId.has(hotelId)) continue;
+        if (row.kind === "image") {
+          thumbByHotelId.set(hotelId, url);
+        } else if (!thumbByHotelId.has(hotelId)) {
+          thumbByHotelId.set(hotelId, url);
+        }
+      }
+    }
+  }
+
+  const postIds = Array.from(
+    new Set(leads.map((lead) => lead.post_id).filter((id): id is string => Boolean(id))),
+  );
+  const postMetaById = new Map<string, { titulo: string; slug_destino: string | null }>();
+  if (sr.ok && postIds.length > 0) {
+    const res = await sr.client
+      .from("posts")
+      .select("id, titulo, slug_destino")
+      .in("id", postIds);
+    if (res.error) {
+      console.error("[crm] posts(meta):", res.error.message);
+    } else {
+      for (const row of res.data ?? []) {
+        const id = typeof row.id === "string" ? row.id : "";
+        if (!id) continue;
+        postMetaById.set(id, {
+          titulo: typeof row.titulo === "string" ? row.titulo : "",
+          slug_destino:
+            typeof row.slug_destino === "string" && row.slug_destino.trim()
+              ? row.slug_destino.trim().toLowerCase()
+              : null,
+        });
+      }
+    }
+  }
+
+  const flightOptionIds = Array.from(
+    new Set(
+      leads
+        .map((lead) => {
+          const postChoice = lead.post_choice as
+            | { flight_option_id?: unknown; snapshot?: { flight?: { id?: unknown } } }
+            | null
+            | undefined;
+          if (typeof postChoice?.flight_option_id === "string") {
+            return postChoice.flight_option_id;
+          }
+          if (typeof postChoice?.snapshot?.flight?.id === "string") {
+            return postChoice.snapshot.flight.id;
+          }
+          return null;
+        })
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const flightById = new Map<string, LeadPostChoiceFlightPrefill>();
+  if (sr.ok && flightOptionIds.length > 0) {
+    const res = await sr.client
+      .from("post_flight_options")
+      .select(
+        "id, label, origem_iata, destino_iata, data_partida, data_regresso, cia, classe, bagagem_text, descricao",
+      )
+      .in("id", flightOptionIds);
+    if (res.error) {
+      console.error("[crm] post_flight_options:", res.error.message);
+    } else {
+      for (const row of res.data ?? []) {
+        const id = typeof row.id === "string" ? row.id : "";
+        if (!id) continue;
+        flightById.set(id, {
+          id,
+          label: typeof row.label === "string" ? row.label : "",
+          origem_iata: typeof row.origem_iata === "string" ? row.origem_iata : null,
+          destino_iata: typeof row.destino_iata === "string" ? row.destino_iata : null,
+          data_partida: typeof row.data_partida === "string" ? row.data_partida : null,
+          data_regresso: typeof row.data_regresso === "string" ? row.data_regresso : null,
+          cia: typeof row.cia === "string" ? row.cia : null,
+          classe: typeof row.classe === "string" ? row.classe : null,
+          bagagem_text: typeof row.bagagem_text === "string" ? row.bagagem_text : null,
+          descricao: typeof row.descricao === "string" ? row.descricao : null,
+        });
+      }
+    }
+  }
+  const leadsWithChoiceThumb = leads.map((lead) => {
+    const postChoice = lead.post_choice as
+      | { hotel_id?: unknown; snapshot?: { hotel?: { id?: unknown } } }
+      | null
+      | undefined;
+    const hotelId =
+      typeof postChoice?.hotel_id === "string"
+        ? postChoice.hotel_id
+        : typeof postChoice?.snapshot?.hotel?.id === "string"
+          ? postChoice.snapshot.hotel.id
+          : null;
+    const flightId =
+      typeof postChoice?.flight_option_id === "string"
+        ? postChoice.flight_option_id
+        : typeof postChoice?.snapshot?.flight?.id === "string"
+          ? postChoice.snapshot.flight.id
+          : null;
+    const postMeta =
+      typeof lead.post_id === "string" ? postMetaById.get(lead.post_id) : undefined;
+    return {
+      ...lead,
+      post_choice_hotel_thumb_url: hotelId ? thumbByHotelId.get(hotelId) ?? null : null,
+      post_choice_hotel_gallery_urls: hotelId
+        ? (galleryByHotelId.get(hotelId) ?? []).slice(0, 12)
+        : null,
+      post_choice_flight_prefill: flightId ? flightById.get(flightId) ?? null : null,
+      post_titulo: postMeta?.titulo ?? null,
+      post_slug_destino: postMeta?.slug_destino ?? null,
+    };
+  });
 
   let clientUpd: { lead_id: string; message: string; created_at: string }[] =
     [];
@@ -238,7 +416,7 @@ export default async function CrmHomePage() {
         </div>
       ) : null}
       <LeadsKanban
-        initialLeads={leads}
+        initialLeads={leadsWithChoiceThumb}
         clientThreadsByLeadId={clientThreadsByLeadId}
         clientDecisionsByLeadId={clientDecisionsByLeadId}
         crmOutboundByLeadId={crmOutboundByLeadId}

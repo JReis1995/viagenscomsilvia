@@ -105,8 +105,12 @@ export function MarketingHomeSections({
           >
             <LuxuryHero
               copy={site.hero}
-              quizCopy={site.quiz}
-              crm={crm?.hero}
+              posts={posts}
+              crm={
+                crm?.hero
+                  ? { patchHero: crm.hero.patchHero }
+                  : undefined
+              }
             />
           </Suspense>
         );
@@ -115,10 +119,13 @@ export function MarketingHomeSections({
           <ExperienceFeed
             posts={posts}
             feed={site.feed}
-            featuredVideo={site.featuredVideo}
             viewerUserId={viewerUserId}
             wishlistedPostIds={wishlistedPostIds}
-            crm={crm?.feed}
+            crm={
+              crm?.feed
+                ? { patchFeed: crm.feed.patchFeed }
+                : undefined
+            }
           />
         );
       case "stories":

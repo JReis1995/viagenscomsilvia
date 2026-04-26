@@ -14,6 +14,7 @@ import {
   LeadEmailComposeModal,
   type EmailComposePreset,
 } from "@/components/crm/lead-email-compose-modal";
+import { LeadPostChoiceBlock } from "@/components/crm/lead-post-choice-block";
 import { LeadTimelineChat } from "@/components/crm/lead-timeline-chat";
 import { parseDetalhesProposta } from "@/lib/crm/detalhes-proposta";
 import { buildLeadTimeline } from "@/lib/crm/lead-timeline";
@@ -97,18 +98,6 @@ export function LeadQuizDetailModal({
   const [pendingInbound, startInboundTransition] = useTransition();
   const [deletePending, setDeletePending] = useState(false);
   const [deleteErr, setDeleteErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    setNotas(lead.notas_internas?.trim() ?? "");
-    setNotasMsg(null);
-    setInboundSubject("");
-    setInboundBody("");
-    setInboundMsg(null);
-    setAutoFollowup(lead.auto_followup);
-    setAutoFollowupMsg(null);
-    setDeleteErr(null);
-    setDeletePending(false);
-  }, [lead.id, lead.notas_internas, lead.auto_followup]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -494,6 +483,8 @@ export function LeadQuizDetailModal({
             </div>
           </section>
 
+          <LeadPostChoiceBlock lead={lead} />
+
           <p className="mt-6 text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
             O que o cliente indicou
           </p>
@@ -547,6 +538,32 @@ export function LeadQuizDetailModal({
               </dt>
               <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
                 {displayText(lead.companhia)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-wider text-ocean-500">
+                Passageiros (pedido no topo)
+              </dt>
+              <dd className="mt-0.5 whitespace-pre-wrap text-ocean-900">
+                {lead.pedido_adultos || lead.pedido_criancas ? (
+                  <>
+                    {lead.pedido_adultos ?? 0} adulto(s)
+                    {lead.pedido_criancas ? ` · ${lead.pedido_criancas} crianca(s)` : ""}
+                    {lead.pedido_idades_criancas && lead.pedido_idades_criancas.length > 0
+                      ? ` · idades: ${lead.pedido_idades_criancas.join(", ")}`
+                      : ""}
+                    {typeof lead.pedido_quartos === "number"
+                      ? ` · ${lead.pedido_quartos} quarto(s)`
+                      : ""}
+                    {lead.pedido_animais_estimacao === true
+                      ? " · com animais"
+                      : lead.pedido_animais_estimacao === false
+                        ? " · sem animais"
+                        : ""}
+                  </>
+                ) : (
+                  "—"
+                )}
               </dd>
             </div>
             <div className="rounded-xl border border-ocean-100/90 bg-ocean-50/35 px-3 py-2.5">

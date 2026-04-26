@@ -18,8 +18,9 @@ export function isHomeSectionId(s: string): s is HomeSectionId {
   return ID_SET.has(s);
 }
 
-/** Valor por omissão guardado no CMS. */
-export const DEFAULT_HOME_ORDER_CSV = HOME_SECTION_IDS.join(",");
+/** Valor por omissão guardado no CMS — pedido de proposta no fim (conteúdo concreto primeiro). */
+export const DEFAULT_HOME_ORDER_CSV =
+  "hero,feed,stories,social,consultora,process,account,quiz";
 
 /**
  * Lê CSV da BD, remove duplicados e secções desconhecidas, acrescenta as em falta.

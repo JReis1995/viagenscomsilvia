@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { QUIZ_CLIMA_KEYS } from "@/lib/marketing/quiz-clima";
+import { leadPostChoiceSchema } from "@/lib/validations/lead-post-choice";
 
 const telemovelRefine = (s: string) => {
   const digits = s.replace(/\D/g, "");
@@ -67,6 +68,13 @@ export const leadQuizSchema = z
     ja_tem_voos_hotel: z.enum(["nada", "so_voos", "so_hotel", "ambos"], {
       message: "Indica se já tens voos ou hotel.",
     }),
+    pedido_adultos: z.number().int().min(1).max(20).optional(),
+    pedido_criancas: z.number().int().min(0).max(10).optional(),
+    pedido_idades_criancas: z.array(z.number().int().min(0).max(17)).max(10).optional(),
+    pedido_quartos: z.number().int().min(1).max(20).optional(),
+    pedido_animais_estimacao: z.boolean().optional(),
+    post_id: z.string().uuid().optional(),
+    post_choice: leadPostChoiceSchema.optional(),
   })
   .merge(leadMarketingAttributionSchema);
 
@@ -84,6 +92,15 @@ export const leadQuickSchema = leadMarketingAttributionSchema
       .trim()
       .min(2, "Escreve uma linha sobre o destino ou a tua ideia.")
       .max(300),
+    /** Janela vinda do topo (datas) ou vazia. */
+    janela_datas: z.string().trim().max(400).optional(),
+    pedido_adultos: z.number().int().min(1).max(20).optional(),
+    pedido_criancas: z.number().int().min(0).max(10).optional(),
+    pedido_idades_criancas: z.array(z.number().int().min(0).max(17)).max(10).optional(),
+    pedido_quartos: z.number().int().min(1).max(20).optional(),
+    pedido_animais_estimacao: z.boolean().optional(),
+    post_id: z.string().uuid().optional(),
+    post_choice: leadPostChoiceSchema.optional(),
   })
   .refine(
     (d) => {

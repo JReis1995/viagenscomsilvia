@@ -23,6 +23,18 @@ export function isLikelyVideoUrl(url: string): boolean {
   return (
     lower.includes("youtube.com") ||
     lower.includes("youtu.be") ||
-    lower.includes("vimeo.com")
+    lower.includes("vimeo.com") ||
+    isDirectVideoFileUrl(url)
+  );
+}
+
+/** Ficheiro de vídeo alojado (ex.: Supabase Storage). */
+export function isDirectVideoFileUrl(url: string): boolean {
+  const lower = url.toLowerCase().split("?")[0] ?? "";
+  return (
+    lower.endsWith(".mp4") ||
+    lower.endsWith(".webm") ||
+    lower.endsWith(".mov") ||
+    lower.endsWith(".m4v")
   );
 }

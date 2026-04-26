@@ -4,6 +4,7 @@ import type { CrmPostInput } from "@/app/(dashboard)/crm/actions";
 import {
   getYoutubeThumbnailUrl,
   getYoutubeVideoId,
+  isDirectVideoFileUrl,
 } from "@/lib/marketing/media";
 
 type Props = {
@@ -19,11 +20,24 @@ export function PostCardPreview({ form }: Props) {
   }
 
   const isPromo = form.tipo === "promocao";
+  const fileVideo =
+    form.tipo === "video" && raw.length > 0 && isDirectVideoFileUrl(raw);
 
   return (
     <div className="mx-auto max-w-[340px] overflow-hidden rounded-3xl bg-ocean-900 shadow-xl ring-1 ring-ocean-900/10">
       <div className="relative aspect-[4/3] bg-ocean-800">
-        {src ? (
+        {fileVideo ? (
+          <video
+            src={raw}
+            className="absolute inset-0 h-full w-full object-cover"
+            muted
+            playsInline
+            loop
+            autoPlay
+            preload="metadata"
+            aria-hidden
+          />
+        ) : src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
@@ -32,7 +46,7 @@ export function PostCardPreview({ form }: Props) {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-ocean-700 to-ocean-900 text-center text-sm text-white/60">
-            Cola o URL da imagem para ver aqui
+            Carrega uma fotografia ou cola um link para ver aqui
           </div>
         )}
         <div

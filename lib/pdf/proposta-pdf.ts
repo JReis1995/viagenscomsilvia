@@ -61,6 +61,108 @@ function pdfVoosHasContent(v: PdfVoos | undefined): boolean {
   return false;
 }
 
+type ProposalFlightOptionForPdf = {
+  label: string | null;
+  origem_iata: string | null;
+  destino_iata: string | null;
+  data_partida: string | null;
+  data_regresso: string | null;
+  cia: string | null;
+  classe: string | null;
+  bagagem_text: string | null;
+  descricao: string | null;
+};
+
+function formatIsoDatePt(value: string | null | undefined): string {
+  if (!value) return "";
+  const text = value.trim();
+  if (!text) return "";
+  const d = new Date(`${text}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return text;
+  return d.toLocaleDateString("pt-PT");
+}
+
+function formatFlightMeta(opt: ProposalFlightOptionForPdf, isReturn: boolean): string | undefined {
+  const dateValue = isReturn ? opt.data_regresso : opt.data_partida;
+  const dateLabel = formatIsoDatePt(dateValue);
+  const airline = trimStr(opt.cia);
+  const classe = trimStr(opt.classe).replaceAll("_", " ");
+  const parts: string[] = [];
+  if (dateLabel) parts.push(`Data: ${dateLabel}`);
+  if (airline) parts.push(`Companhia: ${airline}`);
+  if (classe) parts.push(`Classe: ${classe}`);
+  return parts.length > 0 ? parts.join(" | ") : undefined;
+}
+
+function buildPdfVoosFromFlightOption(
+  opt: ProposalFlightOptionForPdf,
+): PdfVoos | undefined {
+  const route = [trimStr(opt.origem_iata), trimStr(opt.destino_iata)]
+    .filter(Boolean)
+    .join(" -> ");
+  const idaPartida = trimStr(opt.origem_iata)
+    ? `Partida: ${trimStr(opt.origem_iata)}`
+    : "";
+  const idaChegada = trimStr(opt.destino_iata)
+    ? `Chegada: ${trimStr(opt.destino_iata)}`
+    : "";
+  const voltaPartida = trimStr(opt.destino_iata)
+    ? `Partida: ${trimStr(opt.destino_iata)}`
+    : "";
+  const voltaChegada = trimStr(opt.origem_iata)
+    ? `Chegada: ${trimStr(opt.origem_iata)}`
+    : "";
+  const out: PdfVoos = {
+    titulo_rota: trimStr(opt.label) || route || undefined,
+    ida:
+      idaPartida || idaChegada || formatFlightMeta(opt, false)
+        ? {
+            titulo: "Voo de ida",
+            meta: formatFlightMeta(opt, false),
+            partida: idaPartida || undefined,
+            chegada: idaChegada || undefined,
+          }
+        : undefined,
+    volta:
+      voltaPartida || voltaChegada || formatFlightMeta(opt, true)
+        ? {
+            titulo: "Voo de regresso",
+            meta: formatFlightMeta(opt, true),
+            partida: voltaPartida || undefined,
+            chegada: voltaChegada || undefined,
+          }
+        : undefined,
+    bagagem:
+      trimStr(opt.bagagem_text) ||
+      trimStr(opt.descricao) ||
+      undefined,
+  };
+  return pdfVoosHasContent(out) ? out : undefined;
+}
+
+export function applyProposalPdfFallbacks(
+  details: DetalhesProposta,
+  input: {
+    hotelGalleryUrls?: string[];
+    flightOption?: ProposalFlightOptionForPdf | null;
+  },
+): DetalhesProposta {
+  const next = { ...details };
+
+  if ((!next.galeria_urls || next.galeria_urls.length === 0) && input.hotelGalleryUrls?.length) {
+    next.galeria_urls = input.hotelGalleryUrls;
+  }
+
+  if (!pdfVoosHasContent(next.pdf_voos) && input.flightOption) {
+    const generatedVoos = buildPdfVoosFromFlightOption(input.flightOption);
+    if (generatedVoos) {
+      next.pdf_voos = generatedVoos;
+    }
+  }
+
+  return next;
+}
+
 function resolveTelefoneDisplay(p: DetalhesProposta): string | undefined {
   const t = trimStr(p.contacto_telefone);
   if (t) return pdfSafeText(t);

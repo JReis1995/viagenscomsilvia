@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
+import Link from "next/link";
+import { Suspense, useState } from "react";
 
 import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import { ScrollToPedidoAnchor } from "@/components/marketing/scroll-to-pedido-anchor";
@@ -49,13 +50,54 @@ export function QuizSection({
   const testimonialItems = (alma?.items ?? [])
     .filter((it) => it.quote.trim().length > 0)
     .slice(0, 2);
+  const [quickNome, setQuickNome] = useState("");
+  const [quickEmail, setQuickEmail] = useState("");
+  const [quickTelemovel, setQuickTelemovel] = useState("");
+  const [quickObs, setQuickObs] = useState(prefill?.destinoSonho ?? "");
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [quickMsg, setQuickMsg] = useState<string | null>(null);
 
-  const showAside =
-    crm ||
-    Boolean(stat) ||
-    Boolean(proofEyebrow) ||
-    testimonialItems.length > 0 ||
-    hasContactIcons;
+  async function submitQuickRequest() {
+    setQuickMsg(null);
+    if (quickNome.trim().length < 2) {
+      setQuickMsg("Indica o teu nome.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(quickEmail.trim())) {
+      setQuickMsg("Indica um email válido.");
+      return;
+    }
+    if (quickObs.trim().length < 2) {
+      setQuickMsg("Escreve uma observação breve sobre a viagem.");
+      return;
+    }
+    setQuickBusy(true);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedido_rapido: true,
+          nome: quickNome.trim(),
+          email: quickEmail.trim(),
+          telemovel: quickTelemovel.trim(),
+          destino_sonho: quickObs.trim().slice(0, 300),
+          website_url: "",
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setQuickMsg(data.error ?? "Não foi possível enviar o pedido.");
+        return;
+      }
+      setQuickMsg("Pedido enviado com sucesso. A Sílvia entra em contacto em breve.");
+      setQuickObs("");
+    } catch {
+      setQuickMsg("Erro de rede. Tenta novamente.");
+    } finally {
+      setQuickBusy(false);
+    }
+  }
 
   return (
     <div className="border-t border-ocean-100/60 bg-gradient-to-b from-sand via-ocean-50/20 to-sand">
@@ -136,140 +178,134 @@ export function QuizSection({
             </div>
           ) : null}
 
-          <div
-            className={`mt-12 ${showAside ? "grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start md:gap-12 lg:gap-14" : ""} ${crm ? "pointer-events-none opacity-90" : ""}`}
-          >
-            {showAside ? (
-            <aside className="order-1 space-y-5 md:order-1">
-              {/* Coluna lateral ficava com pointer-events bloqueados pela grelha do CRM */}
-              <div className={crm ? "pointer-events-auto" : undefined}>
-              {stat || proofEyebrow || crm ? (
-                <div className="rounded-2xl border border-ocean-100/90 bg-gradient-to-br from-white via-white to-ocean-50/35 py-5 pl-5 pr-4 shadow-md shadow-ocean-900/[0.06] md:border-l-[3px] md:border-l-terracotta/90 md:pl-6">
-                  {proofEyebrow || crm ? (
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-ocean-500 md:text-left">
-                      {crm ? (
-                        <CrmInlineText
-                          label="Pedido — linha pequena da prova social"
-                          value={copy.socialProofEyebrow}
-                          onApply={(v) => crm.patchQuiz("socialProofEyebrow", v)}
-                        />
-                      ) : (
-                        proofEyebrow
-                      )}
+          {crm ? (
+            <div className={`mt-12 ${crm ? "pointer-events-none opacity-90" : ""}`}>
+              <div className={`mx-auto max-w-3xl${crm ? " pointer-events-auto" : ""}`}>
+                <Suspense
+                  fallback={
+                    <div
+                      className="min-h-[280px] rounded-3xl border border-ocean-100 bg-white/80"
+                      aria-hidden
+                    />
+                  }
+                >
+                  <TravelQuiz
+                    key={quizKey}
+                    prefill={prefill}
+                    quizCopy={copy}
+                    crm={crm}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-ocean-100 bg-white p-6 shadow-sm md:p-8">
+              {(proofEyebrow || stat) ? (
+                <div className="rounded-2xl bg-ocean-50 px-4 py-4">
+                  {proofEyebrow ? (
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-ocean-600">
+                      {proofEyebrow}
                     </p>
                   ) : null}
                   {stat ? (
-                    <p className="mt-3 text-center text-[15px] font-serif font-normal leading-relaxed text-ocean-800 md:text-left md:text-base">
-                      {crm ? (
-                        <CrmInlineText
-                          label="Pedido — texto da prova social"
-                          multiline
-                          value={copy.socialProofStat}
-                          onApply={(v) => crm.patchQuiz("socialProofStat", v)}
-                        />
-                      ) : (
-                        stat
-                      )}
-                    </p>
-                  ) : crm ? (
-                    <p className="mt-3 text-xs text-ocean-500">
-                      <CrmInlineText
-                        label="Pedido — texto da prova social"
-                        multiline
-                        value={copy.socialProofStat}
-                        onApply={(v) => crm.patchQuiz("socialProofStat", v)}
-                      />
-                    </p>
-                  ) : null}
-                  {hasContactIcons ? (
-                    <FalarComSilviaIconLinks
-                      channels={channels}
-                      title={falarLabel}
-                    />
+                    <p className="mt-2 text-base leading-relaxed text-ocean-800">{stat}</p>
                   ) : null}
                 </div>
-              ) : hasContactIcons ? (
-                <div className="rounded-2xl border border-ocean-100/90 bg-gradient-to-br from-white via-white to-ocean-50/35 px-5 py-5 shadow-md shadow-ocean-900/[0.06] md:border-l-[3px] md:border-l-terracotta/90 md:pl-6">
-                  <FalarComSilviaIconLinks
-                    channels={channels}
-                    title={falarLabel}
-                    embedded={false}
-                  />
-                </div>
               ) : null}
-
-              {!crm &&
-              process.env.NODE_ENV === "development" &&
-              !hasContactIcons ? (
-                <p className="text-center text-xs text-ocean-500 md:text-left">
-                  Dica (dev): define{" "}
-                  <code className="rounded bg-ocean-100/80 px-1 text-[11px]">
-                    NEXT_PUBLIC_CONTACT_EMAIL
-                  </code>
-                  ,{" "}
-                  <code className="rounded bg-ocean-100/80 px-1 text-[11px]">
-                    NEXT_PUBLIC_CONTACT_WHATSAPP_URL
-                  </code>{" "}
-                  e/ou{" "}
-                  <code className="rounded bg-ocean-100/80 px-1 text-[11px]">
-                    NEXT_PUBLIC_CONTACT_INSTAGRAM_URL
-                  </code>{" "}
-                  no .env.local, ou URLs no CRM.
-                </p>
-              ) : null}
-
-              {testimonialItems.length > 0 ? (
-                <div className="space-y-4">
-                  <p className="text-center text-[10px] font-semibold uppercase tracking-[0.25em] text-ocean-500 md:text-left">
-                    Vozes de viajantes
-                  </p>
-                  <ul className="space-y-4">
-                    {testimonialItems.map((it, i) => (
-                      <li
-                        key={`${i}-${it.attribution}`}
-                        className="rounded-2xl border border-ocean-100/90 bg-white/85 px-4 py-4 shadow-sm"
-                      >
-                        <p className="font-serif text-sm italic leading-relaxed text-ocean-800 line-clamp-4 md:text-[15px]">
-                          «{it.quote.trim()}»
-                        </p>
-                        {it.attribution.trim() ? (
-                          <p className="mt-3 text-xs font-medium text-ocean-600">
-                            {it.attribution.trim()}
-                          </p>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Link
+                  href="#publicacoes"
+                  className="rounded-full bg-ocean-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ocean-800"
+                >
+                  Ver publicações
+                </Link>
+                <Link
+                  href="/mapa"
+                  className="rounded-full border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                >
+                  Explorar no mapa
+                </Link>
               </div>
-            </aside>
-            ) : null}
-
-            <div
-              className={
-                showAside
-                  ? `order-2 min-w-0 md:order-2${crm ? " pointer-events-auto" : ""}`
-                  : `mx-auto max-w-3xl${crm ? " pointer-events-auto" : ""}`
-              }
-            >
-              <Suspense
-                fallback={
-                  <div
-                    className="min-h-[280px] rounded-3xl border border-ocean-100 bg-white/80"
-                    aria-hidden
+              <div className="mt-5 rounded-2xl border border-ocean-100 bg-sand p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ocean-600">
+                  Pedido rápido
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={quickNome}
+                    onChange={(e) => setQuickNome(e.target.value)}
+                    className="rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Nome"
                   />
-                }
-              >
-                <TravelQuiz
-                  key={quizKey}
-                  prefill={prefill}
-                  quizCopy={copy}
-                  crm={crm}
-                />
-              </Suspense>
+                  <input
+                    type="email"
+                    value={quickEmail}
+                    onChange={(e) => setQuickEmail(e.target.value)}
+                    className="rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm"
+                    placeholder="Email"
+                  />
+                  <input
+                    type="text"
+                    value={quickTelemovel}
+                    onChange={(e) => setQuickTelemovel(e.target.value)}
+                    className="rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+                    placeholder="Telemóvel (opcional)"
+                  />
+                  <textarea
+                    rows={3}
+                    value={quickObs}
+                    onChange={(e) => setQuickObs(e.target.value)}
+                    className="rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm sm:col-span-2"
+                    placeholder="Observações sobre a viagem que imaginas"
+                  />
+                </div>
+                {quickMsg ? (
+                  <p
+                    className={`mt-2 text-sm ${
+                      quickMsg.startsWith("Pedido enviado")
+                        ? "text-emerald-700"
+                        : "text-terracotta"
+                    }`}
+                  >
+                    {quickMsg}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={quickBusy}
+                  onClick={() => void submitQuickRequest()}
+                  className="mt-3 rounded-full bg-ocean-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ocean-800 disabled:opacity-60"
+                >
+                  {quickBusy ? "A enviar..." : "Enviar pedido"}
+                </button>
+              </div>
+              {hasContactIcons ? (
+                <div className="mt-5 border-t border-ocean-100 pt-4">
+                  <FalarComSilviaIconLinks channels={channels} title={falarLabel} />
+                </div>
+              ) : null}
+              {testimonialItems.length > 0 ? (
+                <ul className="mt-5 grid gap-3 md:grid-cols-2">
+                  {testimonialItems.map((it, i) => (
+                    <li
+                      key={`${i}-${it.attribution}`}
+                      className="rounded-2xl border border-ocean-100 bg-sand px-4 py-4"
+                    >
+                      <p className="font-serif text-sm italic leading-relaxed text-ocean-900">
+                        «{it.quote.trim()}»
+                      </p>
+                      {it.attribution.trim() ? (
+                        <p className="mt-2 text-xs font-medium text-ocean-600">
+                          {it.attribution.trim()}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
-          </div>
+          )}
 
           {crm ? (
             <div className="mx-auto mt-14 max-w-3xl space-y-6 rounded-2xl border border-dashed border-ocean-300 bg-ocean-50/50 px-5 py-6 text-left md:px-8">

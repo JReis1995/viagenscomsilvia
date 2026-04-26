@@ -109,6 +109,9 @@ export default async function WishlistPage() {
                   <p className="font-medium text-ocean-900">
                     {post?.titulo ?? row.destino_label ?? "Item"}
                   </p>
+                  {post && row.destino_label ? (
+                    <p className="text-xs text-ocean-600">{row.destino_label}</p>
+                  ) : null}
                   <p className="text-xs text-ocean-500">
                     {new Date(row.created_at).toLocaleDateString("pt-PT")}
                   </p>

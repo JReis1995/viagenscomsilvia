@@ -19,6 +19,7 @@ export default async function HomePage({ searchParams }: Props) {
     prefill?.destinoSonho ?? "",
     prefill?.vibe ?? "",
     prefill?.clima ?? "",
+    prefill?.janelaDatasPrefill ?? "",
   ].join("|");
 
   const [posts, site] = await Promise.all([

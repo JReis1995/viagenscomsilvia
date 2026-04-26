@@ -16,6 +16,19 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+function isMissingOptionalPostsColumns(message: string | undefined): boolean {
+  const m = (message ?? "").toLowerCase();
+  return (
+    m.includes("column posts.slug does not exist") ||
+    m.includes("column posts.preco_base_eur does not exist") ||
+    m.includes("column posts.has_variants does not exist") ||
+    m.includes("column posts.pets_allowed does not exist") ||
+    m.includes("column posts.capacidade_min does not exist") ||
+    m.includes("column posts.capacidade_max does not exist") ||
+    m.includes("column posts.data_fim_publicacao does not exist")
+  );
+}
+
 export default async function CrmPublicacoesPage() {
   const supabase = await createClient();
   const {
@@ -42,13 +55,25 @@ export default async function CrmPublicacoesPage() {
     );
   }
 
-  const { data, error } = await sr.client
+  let { data, error } = await sr.client
     .from("posts")
     .select(
-      "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, status, data_publicacao, ordem_site, membros_apenas, slug_destino, latitude, longitude, feed_vibe_slugs, hover_line",
+      "id, tipo, slug, titulo, descricao, media_url, preco_desde, preco_base_eur, has_variants, link_cta, status, data_publicacao, data_fim_publicacao, ordem_site, membros_apenas, slug_destino, latitude, longitude, feed_vibe_slugs, hover_line, pets_allowed, capacidade_min, capacidade_max",
     )
     .order("ordem_site", { ascending: true })
     .order("data_publicacao", { ascending: false });
+
+  if (error && isMissingOptionalPostsColumns(error.message)) {
+    const fallback = await sr.client
+      .from("posts")
+      .select(
+        "id, tipo, titulo, descricao, media_url, preco_desde, link_cta, status, data_publicacao, ordem_site, membros_apenas, slug_destino, latitude, longitude, feed_vibe_slugs, hover_line",
+      )
+      .order("ordem_site", { ascending: true })
+      .order("data_publicacao", { ascending: false });
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     return (
