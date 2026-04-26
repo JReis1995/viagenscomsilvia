@@ -41,7 +41,7 @@ const strikeRed = rgb(210 / 255, 60 / 255, 60 / 255);
 
 type PDFFont = Awaited<ReturnType<PDFDocument["embedFont"]>>;
 
-function trimStr(x: string | undefined): string {
+function trimStr(x: string | null | undefined): string {
   return x?.trim() ?? "";
 }
 

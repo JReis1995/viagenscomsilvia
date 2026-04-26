@@ -118,6 +118,7 @@ export async function fetchPublicacaoBySlug(
         descricao,
         preco_delta_eur,
         preco_label,
+        pets_allowed,
         default_selected,
         status
       ),
@@ -135,6 +136,7 @@ export async function fetchPublicacaoBySlug(
         descricao,
         preco_delta_eur,
         preco_label,
+        pets_allowed,
         status
       )
     `,
@@ -370,6 +372,21 @@ export async function fetchPublicacaoBySlug(
     }))
     .sort((a, b) => a.ordem - b.ordem);
 
+  const hotel_regimes = Array.from(
+    new Set(
+      hotels
+        .map((hotel) => (typeof hotel.regime === "string" ? hotel.regime.trim() : ""))
+        .filter((value) => value.length > 0),
+    ),
+  );
+  const hotel_names = Array.from(
+    new Set(
+      hotels
+        .map((hotel) => (typeof hotel.nome === "string" ? hotel.nome.trim() : ""))
+        .filter((value) => value.length > 0),
+    ),
+  );
+
   return {
     id: data.id,
     tipo: data.tipo,
@@ -401,6 +418,8 @@ export async function fetchPublicacaoBySlug(
       typeof data.capacidade_min === "number" ? data.capacidade_min : null,
     capacidade_max:
       typeof data.capacidade_max === "number" ? data.capacidade_max : null,
+    hotel_regimes,
+    hotel_names,
     hotels,
     extras,
     flight_options: flightOptions,

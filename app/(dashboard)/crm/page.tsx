@@ -230,7 +230,11 @@ export default async function CrmHomePage() {
   }
   const leadsWithChoiceThumb = leads.map((lead) => {
     const postChoice = lead.post_choice as
-      | { hotel_id?: unknown; snapshot?: { hotel?: { id?: unknown } } }
+      | {
+          hotel_id?: unknown;
+          flight_option_id?: unknown;
+          snapshot?: { hotel?: { id?: unknown }; flight?: { id?: unknown } };
+        }
       | null
       | undefined;
     const hotelId =

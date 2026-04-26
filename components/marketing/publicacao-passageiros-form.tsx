@@ -6,11 +6,13 @@ type Props = {
   adultos: string;
   criancas: string;
   idadesCriancas: number[];
+  pets: string;
   onInicioChange: (value: string) => void;
   onFimChange: (value: string) => void;
   onAdultosChange: (value: string) => void;
   onCriancasChange: (value: string) => void;
   onIdadeCriancaChange: (index: number, value: number) => void;
+  onPetsChange: (value: string) => void;
 };
 
 export function PublicacaoPassageirosForm({
@@ -19,11 +21,13 @@ export function PublicacaoPassageirosForm({
   adultos,
   criancas,
   idadesCriancas,
+  pets,
   onInicioChange,
   onFimChange,
   onAdultosChange,
   onCriancasChange,
   onIdadeCriancaChange,
+  onPetsChange,
 }: Props) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
@@ -66,6 +70,18 @@ export function PublicacaoPassageirosForm({
           onChange={(e) => onCriancasChange(e.target.value)}
           className="mt-1 w-full rounded-xl border border-ocean-200 px-3 py-2"
         />
+      </label>
+      <label className="text-sm text-ocean-700">
+        Animais de estimação
+        <select
+          value={pets}
+          onChange={(e) => onPetsChange(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-ocean-200 px-3 py-2"
+        >
+          <option value="">Sem preferência</option>
+          <option value="sim">Com animais</option>
+          <option value="nao">Sem animais</option>
+        </select>
       </label>
       {idadesCriancas.length > 0 ? (
         <div className="md:col-span-2">

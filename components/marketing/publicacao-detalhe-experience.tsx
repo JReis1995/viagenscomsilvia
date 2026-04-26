@@ -75,6 +75,8 @@ export function PublicacaoDetalheExperience({ post, quizCopy }: Props) {
           rawPetsPreference === "não"
         ? false
         : null;
+  const petsInputValue: "" | "sim" | "nao" =
+    petsPreference === true ? "sim" : petsPreference === false ? "nao" : "";
   const filteredHotels = useMemo(() => {
     if (petsPreference !== true) return post.hotels;
     return post.hotels.filter((hotel) => hotel.pets_allowed !== false);
@@ -342,6 +344,16 @@ export function PublicacaoDetalheExperience({ post, quizCopy }: Props) {
     else params.delete("pedido_data_inicio");
     if (parsePedidoDataIso(fim)) params.set("pedido_data_fim", fim);
     else params.delete("pedido_data_fim");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function handlePetsChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "sim" || value === "nao") {
+      params.set("pedido_animais_estimacao", value);
+    } else {
+      params.delete("pedido_animais_estimacao");
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
@@ -730,6 +742,7 @@ export function PublicacaoDetalheExperience({ post, quizCopy }: Props) {
                   adultos={adultos}
                   criancas={criancas}
                   idadesCriancas={idadesCriancas}
+                  pets={petsInputValue}
                   onInicioChange={setInicio}
                   onFimChange={setFim}
                   onAdultosChange={setAdultos}
@@ -742,6 +755,7 @@ export function PublicacaoDetalheExperience({ post, quizCopy }: Props) {
                       prev.map((current, i) => (i === index ? value : current)),
                     );
                   }}
+                  onPetsChange={handlePetsChange}
                 />
                 <label className="mt-3 block text-sm text-ocean-700">
                   Quantidade de quartos necessária
