@@ -433,14 +433,14 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   consultora: {
     eyebrow: "A tua consultora",
     title: "Olá, sou a Sílvia",
-    p1: "Trabalho como consultora de viagens independente porque acredito que planear uma viagem deve ser tão memorável quanto viver a viagem. Ouço primeiro, pergunto depois, e só então desenho um percurso que respeita o teu ritmo, orçamento e curiosidade.",
-    p2: "Sem call centers nem pacotes engessados — só conversa directa, fornecedores escolhidos a dedo e o acompanhamento que gostarias de ter numa amiga que percebe de mapas e mesas boas.",
+    p1: "Olá! Sou Sílvia Milheiro, coordenadora de um projeto no mundo das energias, formadora certificada e consultora independente de viagens na Uma Família em Viagem (RNAVT 11763). É um prazer apresentar-te uma proposta de orçamento para uma experiência inesquecível.",
+    p2: "Como especialista, uno o rigor da gestão de equipas à paixão por criar viagens autênticas e personalizadas, acompanhando-te em cada etapa do sonho ao regresso. Com atenção aos detalhes e um serviço verdadeiramente personalizado, transformo os teus planos de viagem em experiências inesquecíveis. Sem call centers nem pacotes engessados — só conversa directa, fornecedores escolhidos a dedo e o acompanhamento que gostarias de ter numa amiga que percebe de mapas e mesas boas.",
     quote:
       "“O melhor elogio que recebo é quando dizem que a viagem pareceu feita à medida — porque foi.”",
     linkPhoto: "",
     linkVideo: "",
     ctaQuiz: "Quero a minha proposta",
-    portraitUrl: "",
+    portraitUrl: "/silvia-milheiro-2026.png",
   },
   registerIncentive: {
     headline: "Com a tua conta de cliente desbloqueias mais do site",

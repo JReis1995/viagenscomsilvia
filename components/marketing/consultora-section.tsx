@@ -7,8 +7,6 @@ import { AlmaTestimonialsSlider } from "@/components/marketing/alma-testimonials
 import type { SiteContent } from "@/lib/site/site-content";
 import {
   getConsultoraPortraitUrl,
-  getInstagramPhotoPostUrl,
-  getInstagramVideoPostUrl,
 } from "@/lib/site/social";
 
 function PortraitFallback() {
@@ -53,20 +51,13 @@ export function ConsultoraSection({ copy, alma, crm }: Props) {
     copy.portraitUrl.trim() !== ""
       ? copy.portraitUrl.trim()
       : getConsultoraPortraitUrl();
-  const photoPost =
-    copy.linkPhoto.trim() !== ""
-      ? copy.linkPhoto.trim()
-      : getInstagramPhotoPostUrl();
-  const videoPost =
-    copy.linkVideo.trim() !== ""
-      ? copy.linkVideo.trim()
-      : getInstagramVideoPostUrl();
 
   const portraitIsConfigured =
     portraitUrl &&
-    (portraitUrl.startsWith("http://") || portraitUrl.startsWith("https://"));
+    (portraitUrl.startsWith("http://") ||
+      portraitUrl.startsWith("https://") ||
+      portraitUrl.startsWith("/"));
 
-  const lock = crm ? "pointer-events-none" : "";
   const ctaLock = crm
     ? "pointer-events-none [&_.crm-consultora-pe]:pointer-events-auto"
     : "";
@@ -151,30 +142,9 @@ export function ConsultoraSection({ copy, alma, crm }: Props) {
               )}
             </p>
           </blockquote>
-          <div className={`mt-8 flex flex-wrap gap-3 ${lock}`}>
-            <a
-              href={photoPost}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-ocean-700 underline-offset-4 hover:text-ocean-900 hover:underline"
-            >
-              Ver publicação no Instagram
-            </a>
-            <span className="text-ocean-300" aria-hidden>
-              ·
-            </span>
-            <a
-              href={videoPost}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-ocean-700 underline-offset-4 hover:text-ocean-900 hover:underline"
-            >
-              Ver vídeo no Instagram
-            </a>
-          </div>
           <a
             href="#pedido-orcamento"
-            className={`mt-10 inline-flex h-14 min-h-[3.5rem] items-center justify-center rounded-full bg-ocean-900 px-9 text-sm font-semibold tracking-wide text-white shadow-[0_18px_40px_-20px_rgba(15,61,57,0.5)] transition hover:bg-ocean-800 ${ctaLock}`}
+            className={`mt-8 inline-flex h-14 min-h-[3.5rem] items-center justify-center rounded-full bg-ocean-900 px-9 text-sm font-semibold tracking-wide text-white shadow-[0_18px_40px_-20px_rgba(15,61,57,0.5)] transition hover:bg-ocean-800 ${ctaLock}`}
           >
             {crm ? (
               <CrmInlineText
