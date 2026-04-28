@@ -371,7 +371,7 @@ export function CrmSiteEditor({ initial }: Props) {
         ) : null}
 
         <div
-          className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex flex-nowrap gap-2 overflow-x-auto pb-2 touch-pan-x [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5"
           role="tablist"
           aria-label="Secções do site"
         >

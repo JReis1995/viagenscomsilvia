@@ -1,10 +1,12 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { useState } from "react";
 
 import { CrmInlineText } from "@/components/crm/crm-inline-text";
 import { AlmaTestimonialsSlider } from "@/components/marketing/alma-testimonials-slider";
 import type { SiteContent } from "@/lib/site/site-content";
+import { createClient } from "@/lib/supabase/client";
 import {
   getConsultoraPortraitUrl,
 } from "@/lib/site/social";
@@ -45,8 +47,27 @@ type Props = {
   };
 };
 
+const SITE_MEDIA_BUCKET = "post-media";
+const MAX_PORTRAIT_IMAGE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_PORTRAIT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+function sanitizeUploadBasename(name: string): string {
+  const base = name.replace(/^.*[/\\]/, "").slice(0, 80);
+  const cleaned = base
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return cleaned || "silvia.jpg";
+}
+
 export function ConsultoraSection({ copy, alma, crm }: Props) {
   const reduceMotion = useReducedMotion();
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadHint, setUploadHint] = useState<string | null>(null);
   const portraitUrl =
     copy.portraitUrl.trim() !== ""
       ? copy.portraitUrl.trim()
@@ -61,6 +82,38 @@ export function ConsultoraSection({ copy, alma, crm }: Props) {
   const ctaLock = crm
     ? "pointer-events-none [&_.crm-consultora-pe]:pointer-events-auto"
     : "";
+
+  async function uploadPortraitInCrm(file: File | undefined | null): Promise<void> {
+    if (!crm || !file) return;
+    if (!ALLOWED_PORTRAIT_TYPES.has(file.type)) {
+      setUploadHint("Formato inválido. Usa JPEG, PNG, WebP ou GIF.");
+      return;
+    }
+    if (file.size > MAX_PORTRAIT_IMAGE_BYTES) {
+      setUploadHint("A imagem é demasiado grande (máximo 20 MB).");
+      return;
+    }
+    setUploadBusy(true);
+    setUploadHint(null);
+    try {
+      const supabase = createClient();
+      const path = `site/consultora/${crypto.randomUUID()}-${sanitizeUploadBasename(file.name)}`;
+      const { data, error } = await supabase.storage
+        .from(SITE_MEDIA_BUCKET)
+        .upload(path, file, { cacheControl: "3600", upsert: false });
+      if (error) {
+        setUploadHint(`Erro ao carregar fotografia: ${error.message}`);
+        return;
+      }
+      const { data: pub } = supabase.storage
+        .from(SITE_MEDIA_BUCKET)
+        .getPublicUrl(data.path);
+      crm.patchConsultora("portraitUrl", pub.publicUrl);
+      setUploadHint("Fotografia carregada. Publica o rascunho para aplicar no site.");
+    } finally {
+      setUploadBusy(false);
+    }
+  }
 
   return (
     <section
@@ -142,6 +195,32 @@ export function ConsultoraSection({ copy, alma, crm }: Props) {
               )}
             </p>
           </blockquote>
+          {crm ? (
+            <label className="mt-5 block rounded-2xl border border-ocean-100 bg-white/80 px-4 py-3 text-sm text-ocean-800">
+              <span className="font-medium text-ocean-900">
+                Upload de nova foto (vista clicável)
+              </span>
+              <span className="mt-1 block text-xs text-ocean-600">
+                Carrega uma imagem e o retrato é atualizado automaticamente.
+              </span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={uploadBusy}
+                className="mt-2 w-full rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm text-ocean-900 file:mr-3 file:rounded-lg file:border-0 file:bg-ocean-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white disabled:opacity-60"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  void uploadPortraitInCrm(file);
+                  e.target.value = "";
+                }}
+              />
+              {uploadHint ? (
+                <span className="mt-2 block text-xs text-ocean-600">
+                  {uploadHint}
+                </span>
+              ) : null}
+            </label>
+          ) : null}
           <a
             href="#pedido-orcamento"
             className={`mt-8 inline-flex h-14 min-h-[3.5rem] items-center justify-center rounded-full bg-ocean-900 px-9 text-sm font-semibold tracking-wide text-white shadow-[0_18px_40px_-20px_rgba(15,61,57,0.5)] transition hover:bg-ocean-800 ${ctaLock}`}

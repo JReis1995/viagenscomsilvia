@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { VIBE_OPTIONS } from "@/components/marketing/quiz-options";
+import { createClient } from "@/lib/supabase/client";
 import type { SiteContent } from "@/lib/site/site-content";
 
 export type TabId =
@@ -144,6 +145,23 @@ export const TABS: TabDef[] = [
       "Limiares em horas para as bordas dos cartões no Kanban (tempo desde o pedido): até ao primeiro valor a borda fica neutra; entre o primeiro e o segundo fica amarela; acima do segundo fica vermelha. Estados finais (Ganho, Cancelado, Arquivado) e a coluna «Outros estados» ficam sempre neutros. Também defines o texto de ajuda junto ao «Exportar CSV». Não altera o site público — só o painel /crm.",
   },
 ];
+
+const SITE_MEDIA_BUCKET = "post-media";
+const MAX_PORTRAIT_IMAGE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_PORTRAIT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+function sanitizeUploadBasename(name: string): string {
+  const base = name.replace(/^.*[/\\]/, "").slice(0, 80);
+  const cleaned = base
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return cleaned || "silvia.jpg";
+}
 
 function Field({
   label,
@@ -456,6 +474,52 @@ export function SiteEditorFieldsForTab({
   removeHowWeWorkStep,
   moveHowWeWorkStep,
 }: { tab: TabId; data: SiteContent } & SiteContentPatchFns) {
+  const [portraitUploadBusy, setPortraitUploadBusy] = useState(false);
+  const [portraitUploadHint, setPortraitUploadHint] = useState<string | null>(
+    null,
+  );
+
+  async function uploadConsultoraPortrait(
+    file: File | undefined | null,
+  ): Promise<void> {
+    if (!file) return;
+    if (!ALLOWED_PORTRAIT_TYPES.has(file.type)) {
+      setPortraitUploadHint(
+        "Formato inválido. Usa JPEG, PNG, WebP ou GIF para a fotografia.",
+      );
+      return;
+    }
+    if (file.size > MAX_PORTRAIT_IMAGE_BYTES) {
+      setPortraitUploadHint("A imagem é demasiado grande (máximo 20 MB).");
+      return;
+    }
+
+    setPortraitUploadBusy(true);
+    setPortraitUploadHint(null);
+    try {
+      const supabase = createClient();
+      const path = `site/consultora/${crypto.randomUUID()}-${sanitizeUploadBasename(file.name)}`;
+      const { data: uploaded, error } = await supabase.storage
+        .from(SITE_MEDIA_BUCKET)
+        .upload(path, file, { cacheControl: "3600", upsert: false });
+      if (error) {
+        setPortraitUploadHint(
+          `Erro ao carregar fotografia: ${error.message}`,
+        );
+        return;
+      }
+      const { data: pub } = supabase.storage
+        .from(SITE_MEDIA_BUCKET)
+        .getPublicUrl(uploaded.path);
+      patch("consultora", "portraitUrl", pub.publicUrl);
+      setPortraitUploadHint(
+        "Fotografia carregada. Guarda/Publica para aplicar no site.",
+      );
+    } finally {
+      setPortraitUploadBusy(false);
+    }
+  }
+
   return (
     <>
         {tab === "layout" ? (
@@ -1369,6 +1433,30 @@ export function SiteEditorFieldsForTab({
               value={data.consultora.portraitUrl}
               onChange={(v) => patch("consultora", "portraitUrl", v)}
             />
+            <label className="block text-sm">
+              <span className="font-medium text-ocean-800">
+                Upload de nova foto da Sílvia
+              </span>
+              <span className="mt-0.5 block text-xs font-normal text-ocean-500">
+                Faz upload direto para preencher automaticamente o campo da foto.
+              </span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={portraitUploadBusy}
+                className="mt-2 w-full rounded-xl border border-ocean-200 bg-white px-3 py-2 text-sm text-ocean-900 shadow-sm file:mr-3 file:rounded-lg file:border-0 file:bg-ocean-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white disabled:opacity-60"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  void uploadConsultoraPortrait(file);
+                  e.target.value = "";
+                }}
+              />
+              {portraitUploadHint ? (
+                <span className="mt-2 block text-xs text-ocean-600">
+                  {portraitUploadHint}
+                </span>
+              ) : null}
+            </label>
             <Field
               label="Link Instagram — foto"
               help="Opcional"
